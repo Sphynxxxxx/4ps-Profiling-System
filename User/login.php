@@ -126,125 +126,9 @@ if (!empty($success_msg)) {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Poppins', sans-serif;
-            background-color: #f5f5f5;
-            color: #333;
-        }
-        
-        .navbar {
-            background-color: #0056b3;
-            padding: 15px 0;
-        }
-        
-        .navbar-brand {
-            color: #fff;
-            font-weight: 600;
-            font-size: 1.5rem;
-        }
-        
-        .navbar-brand img {
-            height: 40px;
-            margin-right: 10px;
-        }
-        
-        .nav-link {
-            color: rgba(255, 255, 255, 0.85);
-            font-weight: 500;
-            margin: 0 10px;
-        }
-        
-        .nav-link:hover {
-            color: #fff;
-        }
-        
-        .login-container {
-            max-width: 500px;
-            margin: 80px auto;
-            background-color: #fff;
-            border-radius: 10px;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
-            padding: 40px;
-        }
-        
-        .login-title {
-            text-align: center;
-            color: #0056b3;
-            font-weight: 700;
-            margin-bottom: 30px;
-        }
-        
-        .login-icon {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        
-        .login-icon i {
-            font-size: 3rem;
-            color: #0056b3;
-            padding: 20px;
-            border-radius: 50%;
-            background-color: rgba(0, 86, 179, 0.1);
-        }
-        
-        .form-control {
-            padding: 12px 15px;
-            border-radius: 6px;
-            border: 1px solid #ddd;
-            margin-bottom: 20px;
-        }
-        
-        .form-control:focus {
-            border-color: #0056b3;
-            box-shadow: 0 0 0 0.2rem rgba(0, 86, 179, 0.25);
-        }
-        
-        .btn-login {
-            background-color: #0056b3;
-            color: #fff;
-            font-weight: 600;
-            padding: 12px 40px;
-            border: none;
-            border-radius: 30px;
-            font-size: 1.1rem;
-            display: block;
-            width: 100%;
-            margin: 30px 0 20px;
-            transition: all 0.3s ease;
-        }
-        
-        .btn-login:hover {
-            background-color: #004494;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        }
-        
-        .forgotten-password {
-            display: block;
-            text-align: center;
-            color: #0056b3;
-            text-decoration: none;
-            margin-bottom: 20px;
-            font-size: 0.9rem;
-        }
-        
-        .register-link {
-            text-align: center;
-            margin-top: 20px;
-            font-size: 0.9rem;
-        }
-        
-        .register-link a {
-            color: #0056b3;
-            text-decoration: none;
-            font-weight: 600;
-        }
-        
-        .register-link a:hover {
-            text-decoration: underline;
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="css/login_register.css" rel="stylesheet">
+
 </head>
 <body>
     <!-- Navigation -->
@@ -323,7 +207,6 @@ if (!empty($success_msg)) {
         </div>
     </div>
 
-    <!-- Bootstrap JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

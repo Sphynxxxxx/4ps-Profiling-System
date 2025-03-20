@@ -24,6 +24,7 @@ body {
     position: relative;
 }
 
+
 /* Header styles */
 .top-bar {
     background-color: var(--primary);
@@ -54,16 +55,24 @@ body {
     padding: 1rem 0;
 }
 
+.navbar-brand {
+    display: flex;
+    align-items: center;
+}
+
 .navbar-brand img {
     height: 50px;
+
 }
 
 .navbar-brand span {
-    font-weight: 700;
-    font-size: 1.5rem;
+    font-weight: bold;
+    font-size: 3rem;
     color: var(--primary);
     margin-left: 1rem;
 }
+
+
 
 .nav-link {
     color: var(--text-dark);

@@ -173,7 +173,7 @@
             <div class="row">
                 <div class="col-lg-4 footer-col">
                     <div class="footer-logo">
-                        <img src="assets/dswd-logo-white.png" alt="DSWD Logo">
+                        <img src="User/assets/pngwing.com (7).png" alt="DSWD Logo">
                     </div>
                     <p class="footer-description">The Department of Social Welfare and Development is committed to empowering the poor, vulnerable, and disadvantaged sectors of society.</p>
                     
@@ -224,7 +224,6 @@
         </div>
     </footer>
 
-    <!-- Bootstrap JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
