@@ -1,0 +1,344 @@
+:root {
+    --dswd-blue: #0033a0;
+    --dswd-red: #ce1126;
+    --sidebar-width: 280px;
+    --header-height: 56px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+    overflow-x: hidden;
+    width: 100%;
+    min-height: 100vh;
+}
+
+/* Header styling */
+.navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--header-height);
+    z-index: 1030;
+    background-color: var(--dswd-blue);
+}
+
+.navbar-brand img {
+    height: 40px;
+    max-width: 100%;
+}
+
+.navbar-brand span {
+    font-size: 1.2rem;
+    color: #fff;
+    margin-left: 10px;
+    white-space: nowrap;
+}
+
+.system-title {
+    font-size: clamp(1.2rem, 3vw, 1.8rem);
+    font-weight: 700;
+    color: var(--dswd-blue);
+}
+
+/* Sidebar styling */
+.sidebar {
+    width: var(--sidebar-width);
+    background-color: #fff;
+    border-right: 1px solid #dee2e6;
+    height: calc(100vh - var(--header-height));
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    overflow-y: auto;
+    z-index: 1020;
+    padding-top: 1.5rem;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+    transition: transform 0.3s ease;
+}
+
+.sidebar .nav-link {
+    color: #212529;
+    padding: 0.8rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    border-radius: 0;
+    transition: all 0.3s ease;
+}
+
+.sidebar .nav-link:hover, 
+.sidebar .nav-link.active {
+    background-color: rgba(0, 51, 160, 0.1);
+    color: var(--dswd-blue);
+}
+
+.sidebar .nav-link i {
+    font-size: 1.3rem;
+    width: 24px;
+    text-align: center;
+}
+
+/* Main content area */
+.main-content {
+    margin-left: var(--sidebar-width);
+    padding: 2rem;
+    padding-top: calc(var(--header-height) + 1rem);
+    width: calc(100% - var(--sidebar-width));
+    min-height: 100vh;
+    transition: margin-left 0.3s ease, width 0.3s ease;
+}
+
+/* User profile section */
+.profile-section {
+    text-align: center;
+    padding: 1.5rem 1rem;
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 1.5rem;
+}
+
+.profile-image {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--dswd-blue);
+    margin: 0 auto 0.8rem;
+}
+
+.user-name {
+    font-weight: 600;
+    margin-bottom: 0.2rem;
+    word-break: break-word;
+    font-size: clamp(1rem, 2.5vw, 1.2rem);
+}
+
+.user-type {
+    display: inline-block;
+    background-color: #e9ecef;
+    border-radius: 20px;
+    padding: 0.25rem 1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+/* Dashboard cards */
+.dashboard-card {
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    transition: transform 0.3s ease;
+    height: 100%;
+    border: none;
+    margin-bottom: 20px;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-5px);
+}
+
+.dashboard-card .card-header {
+    font-weight: 600;
+    border-bottom: none;
+    background-color: transparent;
+    padding-bottom: 0;
+}
+
+.status-button {
+    border-radius: 30px;
+    padding: 0.5rem 2rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.completed-btn {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #a5d6a7;
+}
+
+.missed-btn {
+    background-color: #ffebee;
+    color: #c62828;
+    border: 1px solid #ef9a9a;
+}
+
+/* Notification badge */
+.notification-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    transform: translate(25%, -25%);
+}
+
+/* Sidebar toggle button */
+.sidebar-toggle {
+    display: none;
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    margin-right: 10px;
+    padding: 5px;
+    z-index: 1040;
+}
+
+/* Responsive styles */
+@media (max-width: 1200px) {
+    .main-content {
+        padding: calc(var(--header-height) + 1rem) 1.5rem 1.5rem;
+    }
+}
+
+@media (max-width: 992px) {
+    :root {
+        --sidebar-width: 250px;
+    }
+    
+    .sidebar {
+        transform: translateX(-100%);
+    }
+    
+    .sidebar.show {
+        transform: translateX(0);
+    }
+    
+    .main-content {
+        margin-left: 0;
+        width: 100%;
+    }
+    
+    .sidebar-toggle {
+        display: block;
+    }
+    
+    /* Add overlay when sidebar is shown on mobile */
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: var(--header-height);
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1010;
+    }
+    
+    .sidebar-overlay.show {
+        display: block;
+    }
+}
+
+@media (max-width: 768px) {
+    .main-content {
+        padding: calc(var(--header-height) + 1rem) 1rem 1rem;
+    }
+    
+    .dashboard-card {
+        margin-bottom: 15px;
+    }
+    
+    .status-button {
+        padding: 0.4rem 1.5rem;
+        font-size: 0.8rem;
+    }
+    
+    .navbar-brand span {
+        font-size: 1rem;
+    }
+    
+    .navbar-brand img {
+        height: 35px;
+    }
+}
+
+@media (max-width: 576px) {
+    .profile-image {
+        width: 70px;
+        height: 70px;
+    }
+    
+    .user-name {
+        font-size: 1rem;
+    }
+    
+    .user-type {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.8rem;
+    }
+    
+    .status-button {
+        padding: 0.35rem 1.2rem;
+        font-size: 0.75rem;
+    }
+    
+    .navbar-brand span {
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+
+/* Fix for extremely small screens */
+@media (max-width: 360px) {
+    .main-content {
+        padding: calc(var(--header-height) + 0.8rem) 0.8rem 0.8rem;
+    }
+    
+    .sidebar {
+        width: 85%;
+    }
+    
+    .navbar-brand span {
+        max-width: 120px;
+    }
+}
+
+/* Print styles */
+@media print {
+    .sidebar, .sidebar-toggle, .navbar {
+        display: none;
+    }
+    
+    .main-content {
+        margin-left: 0;
+        width: 100%;
+        padding: 0;
+    }
+    
+    .dashboard-card {
+        box-shadow: none;
+        border: 1px solid #dee2e6;
+    }
+    
+    body {
+        background-color: white;
+    }
+}
+
+/* Additional utility classes */
+.overflow-hidden {
+    overflow: hidden;
+}
+
+.screen-reader-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}

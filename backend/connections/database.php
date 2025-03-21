@@ -20,6 +20,18 @@ class Database {
         return $row;
     }
 
+    public function fetchAll($sql, $params = []) {
+        $stmt = $this->prepareAndBind($sql, $params);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $rows = [];
+        while ($row = $result->fetch_assoc()) {
+            $rows[] = $row;
+        }
+        $stmt->close();
+        return $rows;
+    }
+
     public function insert($sql, $params = []) {
         $stmt = $this->prepareAndBind($sql, $params);
         $success = $stmt->execute();
@@ -31,6 +43,55 @@ class Database {
         $id = $this->conn->insert_id;
         $stmt->close();
         return $id;
+    }
+
+    /**
+     * Execute a SQL statement (for UPDATE, DELETE, etc.)
+     * 
+     * @param string $sql The SQL statement to execute
+     * @param array $params Parameters to bind to the query
+     * @return bool True on success, false on failure
+     */
+    public function execute($sql, $params = []) {
+        try {
+            $stmt = $this->prepareAndBind($sql, $params);
+            $success = $stmt->execute();
+            
+            if (!$success) {
+                throw new Exception("Query execution failed: " . $stmt->error);
+            }
+            
+            $affectedRows = $stmt->affected_rows;
+            $stmt->close();
+            return $affectedRows;
+        } catch (Exception $e) {
+            error_log("Database execute error: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Generic query method for any SQL statement with result
+     * 
+     * @param string $sql The SQL statement to execute
+     * @param array $params Parameters to bind to the query
+     * @return mysqli_result Result set
+     */
+    public function query($sql, $params = []) {
+        $stmt = $this->prepareAndBind($sql, $params);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $stmt->close();
+        return $result;
+    }
+
+    /**
+     * Get the database connection object
+     * 
+     * @return mysqli The database connection object
+     */
+    public function getConnection() {
+        return $this->conn;
     }
 
     private function prepareAndBind($sql, $params) {

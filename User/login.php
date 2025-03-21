@@ -2,18 +2,40 @@
 require_once "../backend/connections/config.php";
 require_once "../backend/connections/database.php";
 
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// Define a debug mode flag - set to false in production
+$debug_mode = true;
+
 // Initialize variables
 $email = $password = "";
 $errors = [];
 
+// Start session if not already started
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
-// Check if user is already logged in
-if (isset($_SESSION['user_id'])) {
-    header("Location: dashboard.php");
-    exit();
+// Check for GET parameters first (logout message, etc.)
+if (isset($_GET['message']) && isset($_GET['type'])) {
+    $message = $_GET['message'];
+    $messageType = $_GET['type'];
+    
+    if ($messageType == 'success') {
+        $success_msg = $message;
+    } else if ($messageType == 'error') {
+        $errors["login"] = $message;
+    }
+}
+
+// Check if user is already logged in - this should be reliable
+if (isset($_SESSION['user_id']) && !empty($_SESSION['user_id'])) {
+    // Check if this is a fresh login (from a POST) or just a page refresh
+    if ($_SERVER["REQUEST_METHOD"] != "POST") {
+        header("Location: dashboard.php");
+        exit();
+    }
 }
 
 // Process login form submission
@@ -55,34 +77,44 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $errors["login"] = "Your account has been deactivated. Please contact the administrator.";
                 } else if (password_verify($password, $user['password'])) {
                     // Login successful
+                    
                     // Store user data in session
                     $_SESSION['user_id'] = $user['user_id'];
                     $_SESSION['email'] = $user['email'];
                     $_SESSION['full_name'] = $user['full_name'];
                     $_SESSION['role'] = $user['role'];
+                    $_SESSION['last_activity'] = time(); // Add this for session timeout tracking
                     
-                    // Update last login timestamp
-                    $updateSql = "UPDATE users SET last_login = NOW() WHERE user_id = ?";
-                    $db->execute($updateSql, [$user['user_id']]);
-                    
-                    // Log activity
-                    $logSql = "INSERT INTO activity_logs (user_id, action, description, ip_address, user_agent) 
-                              VALUES (?, ?, ?, ?, ?)";
-                    $db->execute($logSql, [
-                        $user['user_id'],
-                        'LOGIN',
-                        'User logged in successfully',
-                        $_SERVER['REMOTE_ADDR'],
-                        $_SERVER['HTTP_USER_AGENT']
-                    ]);
-                    
-                    // Redirect based on role
-                    if ($user['role'] == 'admin') {
-                        header("Location: ../admin/dashboard.php");
-                    } else {
-                        header("Location: dashboard.php");
+                    try {
+                        // Update last login timestamp
+                        $updateSql = "UPDATE users SET last_login = NOW() WHERE user_id = ?";
+                        $result = $db->execute($updateSql, [$user['user_id']]);
+                        
+                        if ($debug_mode) {
+                            error_log("Update last_login result: " . ($result ? "Success" : "Failed"));
+                        }
+                        
+                        // Redirect based on role
+                        if ($user['role'] == 'admin') {
+                            header("Location: ../admin/dashboard.php");
+                        } else {
+                            header("Location: dashboard.php");
+                        }
+                        exit();
+                    } catch (Exception $e) {
+                        // This will only catch errors in the update part
+                        if ($debug_mode) {
+                            $errors["login"] = "Error after successful login: " . $e->getMessage();
+                            error_log("Login process error: " . $e->getMessage());
+                        } else {
+                            $errors["login"] = "An error occurred during login. Please try again later.";
+                            error_log("Login process error: " . $e->getMessage());
+                        }
+                        
+                        // Clear the session since we couldn't complete the login process
+                        session_unset();
+                        session_destroy();
                     }
-                    exit();
                 } else {
                     // Password incorrect
                     $errors["login"] = "Invalid email or password";
@@ -95,8 +127,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $db->closeConnection();
             
         } catch (Exception $e) {
-            $errors["login"] = "An error occurred. Please try again later.";
+            // Show detailed error message in debug mode, generic message otherwise
+            if ($debug_mode) {
+                $errors["login"] = "Login error: " . $e->getMessage();
+            } else {
+                $errors["login"] = "An error occurred. Please try again later.";
+            }
             error_log("Login Error: " . $e->getMessage());
+            
+            // Make sure to close the connection in case of an error
+            if (isset($db)) {
+                $db->closeConnection();
+            }
         }
     }
 }
@@ -108,10 +150,15 @@ function test_input($data) {
     return $data;
 }
 
-// Check for success message from registration
+// Check for success message from registration or other sources
 $success_msg = isset($_SESSION['success_msg']) ? $_SESSION['success_msg'] : '';
 if (!empty($success_msg)) {
     unset($_SESSION['success_msg']);
+}
+
+// Get message from query parameters (e.g., from logout.php)
+if (isset($_GET['message']) && isset($_GET['type']) && $_GET['type'] == 'success') {
+    $success_msg = $_GET['message'];
 }
 ?>
 
@@ -125,7 +172,6 @@ if (!empty($success_msg)) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="css/login_register.css" rel="stylesheet">
 

@@ -1,74 +1,128 @@
 <?php
-// Start the session
-session_start();
+require_once "../backend/connections/config.php";
+require_once "../backend/connections/database.php";
 
-// Check if user is logged in, if not redirect to login page
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit();
 }
 
-// Get user data
-$user_id = $_SESSION['user_id'];
-$username = $_SESSION['username'] ?? 'User';
-$role = $_SESSION['role'] ?? 'Beneficiary';
-
-// Connect to database 
-// This is a placeholder - replace with your actual database connection code
-$conn = null;
 try {
-    // $conn = new PDO("mysql:host=localhost;dbname=your_database", "username", "password");
-    // $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch(PDOException $e) {
-    // echo "Connection failed: " . $e->getMessage();
+    $db = new Database();
+    
+    // Get user information
+    $userId = $_SESSION['user_id'];
+    $userSql = "SELECT * FROM users WHERE user_id = ?";
+    $user = $db->fetchOne($userSql, [$userId]);
+    
+    // Get beneficiary information if applicable
+    $beneficiary = null;
+    if ($user && $user['role'] == 'beneficiary') {
+        $beneficiarySql = "SELECT * FROM beneficiaries WHERE user_id = ?";
+        $beneficiary = $db->fetchOne($beneficiarySql, [$userId]);
+    }
+    
+    // Get activity counts
+    $completedSql = "SELECT COUNT(*) as count FROM activities WHERE user_id = ? AND status = 'completed'";
+    $completedResult = $db->fetchOne($completedSql, [$userId]);
+    $completedCount = $completedResult ? $completedResult['count'] : 0;
+    
+    $missedSql = "SELECT COUNT(*) as count FROM activities WHERE user_id = ? AND status = 'missed'";
+    $missedResult = $db->fetchOne($missedSql, [$userId]);
+    $missedCount = $missedResult ? $missedResult['count'] : 0;
+    
+    $newActivitiesSql = "SELECT COUNT(*) as count FROM activities WHERE user_id = ? AND status = 'pending' AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+    $newActivitiesResult = $db->fetchOne($newActivitiesSql, [$userId]);
+    $newActivitiesCount = $newActivitiesResult ? $newActivitiesResult['count'] : 0;
+    
+    // Get recent activities
+    $recentActivitiesSql = "SELECT * FROM activities WHERE user_id = ? AND status = 'pending' ORDER BY due_date ASC LIMIT 3";
+    $recentActivities = $db->fetchAll($recentActivitiesSql, [$userId]);
+    
+    // Get recent updates
+    $updatesSql = "SELECT * FROM updates ORDER BY created_at DESC LIMIT 3";
+    $updates = $db->fetchAll($updatesSql);
+    
+    // Get upcoming events
+    $eventsSql = "SELECT * FROM events WHERE event_date >= CURDATE() ORDER BY event_date ASC LIMIT 3";
+    $events = $db->fetchAll($eventsSql);
+    
+    // Close database connection
+    $db->closeConnection();
+    
+} catch (Exception $e) {
+    // Log error
+    error_log("Dashboard Error: " . $e->getMessage());
+    
+    // Set default values in case of database error
+    $user = [
+        'full_name' => $_SESSION['full_name'] ?? 'User',
+        'role' => $_SESSION['role'] ?? 'beneficiary',
+        'profile_image' => 'assets/images/profile-placeholder.png'
+    ];
+    
+    $completedCount = 0;
+    $missedCount = 0;
+    $newActivitiesCount = 0;
+    $recentActivities = [];
+    $updates = [];
+    $events = [];
+    
+    // Close database connection if it exists
+    if (isset($db)) {
+        $db->closeConnection();
+    }
 }
 
-// Fetch notifications (placeholder)
-$notifications = [
-    ['id' => 1, 'title' => 'Upcoming Health Check', 'message' => 'Your scheduled health check is on June 15, 2025', 'date' => '2025-06-01', 'read' => false],
-    ['id' => 2, 'title' => 'Benefit Payment', 'message' => 'Your monthly benefit has been credited to your account', 'date' => '2025-05-25', 'read' => true],
-    ['id' => 3, 'title' => 'Document Update Required', 'message' => 'Please update your family information by July 1, 2025', 'date' => '2025-05-20', 'read' => false]
-];
+// Determine display name and role for the sidebar
+$displayName = $user['full_name'] ?? $_SESSION['full_name'] ?? 'User';
+$displayRole = strtoupper($user['role'] ?? $_SESSION['role'] ?? 'BENEFICIARY');
+//$profileImage = !empty($user['profile_image']) ? $user['profile_image'] : 
+                //(!empty($user['valid_id_path']) ? $user['valid_id_path'] : 'assets/images/profile-placeholder.png');
 
-// Fetch upcoming events (placeholder)
-$events = [
-    ['id' => 1, 'title' => 'Family Development Session', 'date' => '2025-06-10', 'location' => 'Barangay Community Center'],
-    ['id' => 2, 'title' => 'Health and Nutrition Seminar', 'date' => '2025-06-18', 'location' => 'Municipal Health Office'],
-    ['id' => 3, 'title' => 'Educational Support Workshop', 'date' => '2025-06-25', 'location' => 'Elementary School Auditorium']
-];
+// Total beneficiaries (for admin dashboard)
+$totalBeneficiaries = 0;
+$activePrograms = 0;
+$complianceRate = 0;
+$pendingVerifications = 0;
 
-// Fetch compliance status (placeholder)
-$compliance = [
-    'health' => [
-        'status' => 'Compliant',
-        'lastCheckup' => '2025-04-15',
-        'nextCheckup' => '2025-07-15'
-    ],
-    'education' => [
-        'status' => 'Compliant',
-        'attendance' => '95%',
-        'childrenEnrolled' => 2
-    ],
-    'fds' => [
-        'status' => 'Compliant',
-        'sessionsAttended' => 4,
-        'sessionsRequired' => 6,
-        'nextSession' => '2025-06-10'
-    ]
-];
-
-// Fetch benefit history (placeholder)
-$benefits = [
-    ['month' => 'May 2025', 'healthGrant' => 750, 'educationGrant' => 1500, 'riceSubsidy' => 600, 'total' => 2850, 'status' => 'Received'],
-    ['month' => 'April 2025', 'healthGrant' => 750, 'educationGrant' => 1500, 'riceSubsidy' => 600, 'total' => 2850, 'status' => 'Received'],
-    ['month' => 'March 2025', 'healthGrant' => 750, 'educationGrant' => 1500, 'riceSubsidy' => 600, 'total' => 2850, 'status' => 'Received']
-];
-
-// Count unread notifications
-$unreadCount = 0;
-foreach ($notifications as $notification) {
-    if (!$notification['read']) {
-        $unreadCount++;
+if (isset($user['role']) && $user['role'] == 'admin') {
+    try {
+        $db = new Database();
+        
+        // Get total beneficiaries
+        $totalSql = "SELECT COUNT(*) as count FROM beneficiaries";
+        $totalResult = $db->fetchOne($totalSql);
+        $totalBeneficiaries = $totalResult ? $totalResult['count'] : 0;
+        
+        // Get active programs
+        $programsSql = "SELECT COUNT(*) as count FROM programs WHERE status = 'active'";
+        $programsResult = $db->fetchOne($programsSql);
+        $activePrograms = $programsResult ? $programsResult['count'] : 0;
+        
+        // Get compliance rate
+        $complianceSql = "SELECT 
+                            (COUNT(CASE WHEN status = 'completed' THEN 1 END) * 100.0 / COUNT(*)) as rate 
+                          FROM activities";
+        $complianceResult = $db->fetchOne($complianceSql);
+        $complianceRate = $complianceResult ? round($complianceResult['rate']) : 0;
+        
+        // Get pending verifications
+        $verificationsSql = "SELECT COUNT(*) as count FROM verifications WHERE status = 'pending'";
+        $verificationsResult = $db->fetchOne($verificationsSql);
+        $pendingVerifications = $verificationsResult ? $verificationsResult['count'] : 0;
+        
+        $db->closeConnection();
+    } catch (Exception $e) {
+        error_log("Admin Dashboard Error: " . $e->getMessage());
+        
+        if (isset($db)) {
+            $db->closeConnection();
+        }
     }
 }
 ?>
@@ -78,837 +132,458 @@ foreach ($notifications as $notification) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - 4P's Profiling System</title>
+    <title>DSWD 4P's Profiling System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        /* Base styles */
-        body {
-            font-family: 'Poppins', sans-serif;
-            color: #333;
-            background-color: #f8f9fa;
-        }
-
-        /* Navbar styles */
-        .navbar {
-            background-color: #fff;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            padding: 15px 0;
-        }
-
-        .navbar-brand {
-            font-weight: 600;
-            font-size: 1.3rem;
-            color: #2c3e50;
-        }
-
-        .navbar-brand img {
-            height: 45px;
-            margin-right: 10px;
-        }
-
-        .navbar-brand span {
-            font-weight: 600;
-        }
-
-        .nav-link {
-            color: #2c3e50;
-            font-weight: 500;
-            padding: 10px 15px;
-            border-radius: 5px;
-            transition: all 0.3s ease;
-        }
-
-        .nav-link:hover, .nav-link.active {
-            color: #3498db;
-            background-color: rgba(52, 152, 219, 0.1);
-        }
-
-        .navbar-toggler {
-            border: none;
-            padding: 0.5rem;
-        }
-
-        .navbar-toggler:focus {
-            box-shadow: none;
-        }
-
-        .btn-login, .btn-register {
-            padding: 8px 20px;
-            border-radius: 5px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-        }
-
-        .btn-login {
-            background-color: transparent;
-            color: #3498db;
-            border: 1px solid #3498db;
-            margin-right: 10px;
-        }
-
-        .btn-login:hover {
-            background-color: rgba(52, 152, 219, 0.1);
-            color: #3498db;
-        }
-
-        .btn-register {
-            background-color: #3498db;
-            color: white;
-            border: 1px solid #3498db;
-        }
-
-        .btn-register:hover {
-            background-color: #2980b9;
-            border-color: #2980b9;
-        }
-
-        /* Footer styles */
-        .footer {
-            background-color: #2c3e50;
-            color: #ecf0f1;
-            padding: 60px 0 20px;
-        }
-
-        .footer-logo img {
-            height: 60px;
-            margin-bottom: 20px;
-        }
-
-        .footer-description {
-            margin-bottom: 25px;
-            opacity: 0.8;
-            font-size: 14px;
-            line-height: 1.6;
-        }
-
-        .social-icons {
-            display: flex;
-            margin-bottom: 30px;
-        }
-
-        .social-icon {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            background-color: rgba(255, 255, 255, 0.1);
-            color: #ecf0f1;
-            margin-right: 10px;
-            transition: all 0.3s ease;
-        }
-
-        .social-icon:hover {
-            background-color: #3498db;
-            color: white;
-            transform: translateY(-3px);
-        }
-
-        .footer-title {
-            color: white;
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 20px;
-            position: relative;
-            padding-bottom: 10px;
-        }
-
-        .footer-title::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 40px;
-            height: 2px;
-            background-color: #3498db;
-        }
-
-        .footer-links {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .footer-links li {
-            margin-bottom: 10px;
-        }
-
-        .footer-links a {
-            color: #bdc3c7;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            font-size: 14px;
-        }
-
-        .footer-links a:hover {
-            color: #3498db;
-            padding-left: 5px;
-        }
-
-        .footer-col {
-            margin-bottom: 30px;
-        }
-
-        .footer-bottom {
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            padding-top: 20px;
-            margin-top: 20px;
-            text-align: center;
-            font-size: 14px;
-            color: #bdc3c7;
-        }
-
-        /* Dashboard specific styles */
-        .dashboard-container {
-            padding: 30px 0;
-            background-color: #f8f9fa;
-            min-height: calc(100vh - 76px);
-        }
-
-        .dashboard-header {
-            margin-bottom: 30px;
-        }
-
-        .welcome-message {
-            font-size: 24px;
-            font-weight: 600;
-            margin-bottom: 10px;
-            color: #2c3e50;
-        }
-
-        .dashboard-subtitle {
-            color: #7f8c8d;
-            margin-bottom: 20px;
-        }
-
-        .dashboard-card {
-            background-color: #fff;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            margin-bottom: 25px;
-            transition: transform 0.3s ease;
-            height: 100%;
-        }
-
-        .dashboard-card:hover {
-            transform: translateY(-5px);
-        }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #eee;
-            margin-bottom: 15px;
-        }
-
-        .card-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #2c3e50;
-            margin: 0;
-        }
-
-        .card-icon {
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 10px;
-            color: white;
-        }
-
-        .icon-primary {
-            background-color: #3498db;
-        }
-
-        .icon-success {
-            background-color: #2ecc71;
-        }
-
-        .icon-warning {
-            background-color: #f39c12;
-        }
-
-        .icon-danger {
-            background-color: #e74c3c;
-        }
-
-        .badge-counter {
-            position: absolute;
-            top: -5px;
-            right: -10px;
-            font-size: 11px;
-        }
-
-        .notification-item {
-            padding: 10px 0;
-            border-bottom: 1px solid #eee;
-            cursor: pointer;
-        }
-
-        .notification-item:last-child {
-            border-bottom: none;
-        }
-
-        .notification-item.unread {
-            background-color: #f8f9fa;
-        }
-
-        .notification-title {
-            font-weight: 600;
-            font-size: 14px;
-            margin-bottom: 5px;
-        }
-
-        .notification-message {
-            font-size: 13px;
-            color: #7f8c8d;
-            margin-bottom: 5px;
-        }
-
-        .notification-date {
-            font-size: 12px;
-            color: #95a5a6;
-        }
-
-        .event-item {
-            display: flex;
-            padding: 10px 0;
-            border-bottom: 1px solid #eee;
-        }
-
-        .event-item:last-child {
-            border-bottom: none;
-        }
-
-        .event-date {
-            min-width: 60px;
-            text-align: center;
-            margin-right: 15px;
-        }
-
-        .event-day {
-            font-size: 20px;
-            font-weight: 700;
-            color: #e74c3c;
-        }
-
-        .event-month {
-            font-size: 12px;
-            color: #7f8c8d;
-            text-transform: uppercase;
-        }
-
-        .event-details {
-            flex: 1;
-        }
-
-        .event-title {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-
-        .event-location {
-            font-size: 13px;
-            color: #7f8c8d;
-        }
-
-        .compliance-item {
-            margin-bottom: 15px;
-        }
-
-        .compliance-label {
-            display: flex;
-            justify-content: space-between;
-            font-size: 14px;
-            margin-bottom: 8px;
-        }
-
-        .compliance-status {
-            font-weight: 600;
-        }
-
-        .status-compliant {
-            color: #2ecc71;
-        }
-
-        .status-noncompliant {
-            color: #e74c3c;
-        }
-
-        .progress {
-            height: 10px;
-            margin-bottom: 5px;
-            border-radius: 5px;
-        }
-
-        .compliance-details {
-            display: flex;
-            justify-content: space-between;
-            font-size: 12px;
-            color: #7f8c8d;
-        }
-
-        .benefit-table {
-            width: 100%;
-        }
-
-        .benefit-table th, .benefit-table td {
-            padding: 10px;
-            font-size: 14px;
-        }
-
-        .benefit-table th {
-            color: #2c3e50;
-            font-weight: 600;
-            border-bottom: 2px solid #eee;
-        }
-
-        .benefit-table td {
-            border-bottom: 1px solid #eee;
-        }
-
-        .benefit-table tr:last-child td {
-            border-bottom: none;
-        }
-
-        .status-pill {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 500;
-        }
-
-        .status-received {
-            background-color: #d5f5e3;
-            color: #2ecc71;
-        }
-
-        .status-pending {
-            background-color: #fef9e7;
-            color: #f39c12;
-        }
-
-        .profile-overview {
-            display: flex;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .profile-image {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            overflow: hidden;
-            margin-right: 20px;
-            background-color: #3498db;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 32px;
-            font-weight: 600;
-        }
-
-        .profile-info {
-            flex: 1;
-        }
-
-        .profile-name {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 5px;
-            color: #2c3e50;
-        }
-
-        .profile-role {
-            font-size: 14px;
-            color: #7f8c8d;
-            margin-bottom: 5px;
-        }
-
-        .profile-id {
-            font-size: 13px;
-            color: #95a5a6;
-        }
-
-        .quick-actions {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-top: 20px;
-        }
-
-        .action-button {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 15px;
-            border-radius: 10px;
-            background-color: #fff;
-            border: 1px solid #eee;
-            transition: all 0.3s ease;
-            text-decoration: none;
-        }
-
-        .action-button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .action-icon {
-            font-size: 24px;
-            margin-bottom: 8px;
-            color: #3498db;
-        }
-
-        .action-text {
-            font-size: 12px;
-            color: #2c3e50;
-            text-align: center;
-        }
-
-        .summary-card {
-            padding: 15px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            margin-bottom: 15px;
-            color: white;
-        }
-
-        .summary-icon {
-            font-size: 32px;
-            margin-right: 15px;
-        }
-
-        .summary-info {
-            flex: 1;
-        }
-
-        .summary-value {
-            font-size: 24px;
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-
-        .summary-label {
-            font-size: 14px;
-            opacity: 0.8;
-        }
-
-        .bg-health {
-            background-color: #3498db;
-        }
-
-        .bg-education {
-            background-color: #2ecc71;
-        }
-
-        .bg-fds {
-            background-color: #9b59b6;
-        }
-
-        .bg-rice {
-            background-color: #f39c12;
-        }
-
-        /* Dropdown menu styling */
-        .dropdown-menu {
-            border: none;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            padding: 10px 0;
-            border-radius: 8px;
-        }
-
-        .dropdown-item {
-            padding: 8px 20px;
-            font-size: 14px;
-            color: #2c3e50;
-            transition: all 0.2s ease;
-        }
-
-        .dropdown-item:hover {
-            background-color: rgba(52, 152, 219, 0.1);
-            color: #3498db;
-        }
-
-        .dropdown-divider {
-            margin: 5px 0;
-            border-top: 1px solid #eee;
-        }
-
-        .dropdown-toggle {
-            color: #2c3e50;
-            font-weight: 500;
-            background-color: transparent;
-            border: none;
-        }
-
-        .dropdown-toggle:hover, .dropdown-toggle:focus {
-            color: #3498db;
-            background-color: transparent;
-        }
-
-        /* Button styling */
-        .btn-outline-primary {
-            color: #3498db;
-            border-color: #3498db;
-        }
-
-        .btn-outline-primary:hover {
-            background-color: #3498db;
-            color: white;
-        }
-
-        .btn-sm {
-            padding: 5px 15px;
-            font-size: 12px;
-        }
-
-        @media (max-width: 768px) {
-            .quick-actions {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        @media (max-width: 576px) {
-            .dashboard-header {
-                text-align: center;
-            }
-            
-            .profile-overview {
-                flex-direction: column;
-                text-align: center;
-            }
-            
-            .profile-image {
-                margin-right: 0;
-                margin-bottom: 15px;
-            }
-            
-            .quick-actions {
-                grid-template-columns: 1fr;
-            }
-
-            .compliance-details {
-                flex-direction: column;
-                text-align: center;
-            }
-
-            .compliance-details span {
-                margin-bottom: 5px;
-            }
-
-            .benefit-table {
-                font-size: 12px;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    
 </head>
 <body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg sticky-top">
-        <div class="container">
-            <a class="navbar-brand d-flex align-items-center" href="../index.php">
-                <img src="assets/pngwing.com (7).png" alt="DSWD Logo">
-                <span>4P's Profiling System</span>
-            </a>
-            
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
+    <!-- Top Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top">
+        <div class="container-fluid">
+            <button class="btn btn-primary sidebar-toggle d-lg-none" type="button">
+                <i class="bi bi-list"></i>
             </button>
             
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto me-lg-4">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="dashboard.php">Dashboard</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="profile.php">Profile</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="family.php">Family</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="compliance.php">Compliance</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="benefits.php">Benefits</a>
-                    </li>
-                </ul>
-                
-                <div class="auth-buttons d-flex">
-                    <div class="dropdown">
-                        <button class="btn dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-user-circle me-1"></i> <?php echo htmlspecialchars($username); ?>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                            <li><a class="dropdown-item" href="profile.php"><i class="fas fa-user me-2"></i> My Profile</a></li>
-                            <li><a class="dropdown-item" href="settings.php"><i class="fas fa-cog me-2"></i> Settings</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="logout.php"><i class="fas fa-sign-out-alt me-2"></i> Log Out</a></li>
-                        </ul>
-                    </div>
+            <a class="navbar-brand d-flex align-items-center" href="#">
+                <img src="assets/pngwing.com (7).png" alt="DSWD Logo">
+                <span class="ms-3 text-white">4P's Profiling System</span>
+            </a>
+            
+            <div class="d-flex align-items-center">
+                <div class="position-relative me-3">
+                    <a href="#" class="text-white">
+                        <i class="bi bi-bell-fill fs-5"></i>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge">
+                            <?php echo count($recentActivities); ?>
+                        </span>
+                    </a>
+                </div>
+                <div class="dropdown">
+                    <a class="text-white dropdown-toggle text-decoration-none" href="#" role="button" id="userMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-person-circle fs-5 me-1"></i>
+                        <span class="d-none d-md-inline-block"><?php echo $displayName; ?></span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
+                        <li><a class="dropdown-item" href="profile.php"><i class="bi bi-person me-2"></i> My Profile</a></li>
+                        <li><a class="dropdown-item" href="settings.php"><i class="bi bi-gear me-2"></i> Settings</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="control/logout.php"><i class="bi bi-box-arrow-right me-2"></i> Logout</a></li>
+                    </ul>
                 </div>
             </div>
         </div>
     </nav>
 
-    <div class="dashboard-container">
-        <div class="container">
-            <div class="dashboard-header">
-                <h1 class="welcome-message">Welcome back, <?php echo htmlspecialchars($username); ?>!</h1>
-                <p class="dashboard-subtitle">Here's an overview of your 4P's Program status and activities.</p>
+    <!-- Sidebar and Main Content Container -->
+    <div class="container-fluid p-0">
+        <div class="row g-0">
+            <!-- Sidebar -->
+            <div class="sidebar" id="sidebar">
+                <!-- User Profile Section 
+                <div class="profile-section">
+                    <img src="image_fetch.php" alt="Profile Image" class="profile-image">
+                    <h5 class="user-name"><?php echo $displayName; ?></h5>
+                    <span class="user-type"><?php echo $displayRole; ?></span>
+                </div>-->
+                
+                <!-- Navigation Menu -->
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="dashboard.php">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="profile.php">
+                            <i class="bi bi-person"></i> Profile
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="members.php">
+                            <i class="bi bi-people"></i> Members
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="messages.php">
+                            <i class="bi bi-chat-left-text"></i> Messages
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="calendar.php">
+                            <i class="bi bi-calendar3"></i> Calendar
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="reports.php">
+                            <i class="bi bi-file-earmark-text"></i> Reports
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="settings.php">
+                            <i class="bi bi-gear"></i> Settings
+                        </a>
+                    </li>
+                </ul>
             </div>
 
-            <div class="row">
-                <!-- Left Column -->
-                <div class="col-lg-4">
-                    <!-- Profile Card -->
-                    <div class="dashboard-card">
-                        <div class="card-header">
-                            <h3 class="card-title">Profile Overview</h3>
-                            <div class="card-icon icon-primary">
-                                <i class="fas fa-user"></i>
-                            </div>
-                        </div>
-                        <div class="profile-overview">
-                            <div class="profile-image">
-                                <?php echo strtoupper(substr($username, 0, 1)); ?>
-                            </div>
-                            <div class="profile-info">
-                                <div class="profile-name"><?php echo htmlspecialchars($username); ?></div>
-                                <div class="profile-role"><?php echo htmlspecialchars($role); ?></div>
-                                <div class="profile-id">ID: #<?php echo str_pad($user_id, 5, '0', STR_PAD_LEFT); ?></div>
-                            </div>
-                        </div>
-                        <div class="quick-actions">
-                            <a href="profile.php" class="action-button">
-                                <i class="fas fa-user-edit action-icon"></i>
-                                <span class="action-text">Edit Profile</span>
-                            </a>
-                            <a href="family.php" class="action-button">
-                                <i class="fas fa-users action-icon"></i>
-                                <span class="action-text">Family</span>
-                            </a>
-                            <a href="documents.php" class="action-button">
-                                <i class="fas fa-file-alt action-icon"></i>
-                                <span class="action-text">Documents</span>
-                            </a>
+            <!-- Main Content -->
+            <div class="main-content">
+                <div class="container-fluid">
+                    <!-- Page Title -->
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h1 class="h3 mb-0 text-gray-800">
+                            <i class="bi bi-grid-1x2 me-2"></i> Dashboard
+                        </h1>
+                        <div>
+                            <button class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-download me-1"></i> Export
+                            </button>
+                            <button class="btn btn-primary btn-sm ms-2">
+                                <i class="bi bi-plus-lg me-1"></i> New Record
+                            </button>
                         </div>
                     </div>
 
-                    <!-- Notifications Card -->
-                    <div class="dashboard-card">
-                        <div class="card-header">
-                            <h3 class="card-title">Notifications</h3>
-                            <div class="card-icon icon-warning position-relative">
-                                <i class="fas fa-bell"></i>
-                                <?php if ($unreadCount > 0): ?>
-                                <span class="badge rounded-pill bg-danger badge-counter"><?php echo $unreadCount; ?></span>
-                                <?php endif; ?>
+                    <!-- Statistics Cards Row -->
+                    <div class="row mb-4">
+                        <div class="col-md-3 mb-4">
+                            <div class="card dashboard-card bg-white h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="text-muted mb-1">Total Beneficiaries</h6>
+                                            <h2 class="mb-0 fw-bold"><?php echo number_format($totalBeneficiaries); ?></h2>
+                                        </div>
+                                        <div class="rounded-circle bg-primary bg-opacity-10 p-3">
+                                            <i class="bi bi-people text-primary fs-3"></i>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3">
+                                        <!--<span class="badge bg-success">+12% <i class="bi bi-arrow-up"></i></span>
+                                        <span class="text-muted ms-2">Since last month</span>-->
+                                    </div>
+                                    <div class="mt-4">
+                                        <a href="control/register_beneficiary.php" class="btn btn-primary w-100">
+                                            <i class="bi bi-plus-lg me-2"></i> Register Beneficiaries
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <?php if (empty($notifications)): ?>
-                            <p class="text-center py-3 text-muted">No notifications at this time.</p>
-                        <?php else: ?>
-                            <?php foreach ($notifications as $notification): ?>
-                                <div class="notification-item <?php echo $notification['read'] ? '' : 'unread'; ?>">
-                                    <div class="notification-title">
-                                        <?php echo htmlspecialchars($notification['title']); ?>
-                                        <?php if (!$notification['read']): ?>
-                                            <span class="badge rounded-pill bg-danger ms-2">New</span>
+
+                        <div class="col-md-3 mb-4">
+                            <div class="card dashboard-card bg-white h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="text-muted mb-1">Active Programs</h6>
+                                            <h2 class="mb-0 fw-bold"><?php echo $activePrograms; ?></h2>
+                                        </div>
+                                        <div class="rounded-circle bg-success bg-opacity-10 p-3">
+                                            <i class="bi bi-journal-check text-success fs-3"></i>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3">
+                                        <!--<span class="badge bg-success">+3 <i class="bi bi-arrow-up"></i></span>
+                                        <span class="text-muted ms-2">New this quarter</span>-->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-3 mb-4">
+                            <div class="card dashboard-card bg-white h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="text-muted mb-1">Compliance Rate</h6>
+                                            <h2 class="mb-0 fw-bold"><?php echo $complianceRate; ?>%</h2>
+                                        </div>
+                                        <div class="rounded-circle bg-info bg-opacity-10 p-3">
+                                            <i class="bi bi-check2-circle text-info fs-3"></i>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3">
+                                        <!--<span class="badge bg-success">+5% <i class="bi bi-arrow-up"></i></span>
+                                        <span class="text-muted ms-2">Above target</span>-->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-3 mb-4">
+                            <div class="card dashboard-card bg-white h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="text-muted mb-1">Pending Verifications</h6>
+                                            <h2 class="mb-0 fw-bold"><?php echo $pendingVerifications; ?></h2>
+                                        </div>
+                                        <div class="rounded-circle bg-warning bg-opacity-10 p-3">
+                                            <i class="bi bi-hourglass-split text-warning fs-3"></i>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3">
+                                        <!--<span class="badge bg-danger">-18% <i class="bi bi-arrow-down"></i></span>
+                                        <span class="text-muted ms-2">Reduced backlog</span>-->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Activities Sections -->
+                    <div class="row mb-4">
+                        <!-- New Activities Section -->
+                        <div class="col-md-6 mb-4">
+                            <div class="card dashboard-card">
+                                <div class="card-header d-flex justify-content-between align-items-center py-3">
+                                    <h5 class="mb-0">New Added Activities</h5>
+                                    <span class="badge bg-primary rounded-pill"><?php echo $newActivitiesCount; ?></span>
+                                </div>
+                                <div class="card-body">
+                                    <div class="list-group list-group-flush">
+                                        <?php if (empty($recentActivities)): ?>
+                                        <div class="text-center text-muted py-4">
+                                            <i class="bi bi-calendar-check fs-1"></i>
+                                            <p class="mt-2">No new activities at the moment.</p>
+                                        </div>
+                                        <?php else: ?>
+                                            <?php foreach ($recentActivities as $activity): ?>
+                                            <div class="list-group-item border-0 px-0 d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <h6 class="mb-1"><?php echo htmlspecialchars($activity['title']); ?></h6>
+                                                    <p class="text-muted mb-0 small">
+                                                        <?php 
+                                                        $due_date = new DateTime($activity['due_date']);
+                                                        $now = new DateTime();
+                                                        $diff = $now->diff($due_date);
+                                                        echo "Due in " . $diff->days . " days";
+                                                        ?>
+                                                    </p>
+                                                </div>
+                                                <span class="badge bg-<?php 
+                                                    $category = strtolower($activity['category']);
+                                                    if ($category == 'education') echo 'info';
+                                                    elseif ($category == 'health') echo 'success';
+                                                    elseif ($category == 'financial') echo 'warning';
+                                                    else echo 'secondary';
+                                                ?> rounded-pill"><?php echo htmlspecialchars($activity['category']); ?></span>
+                                            </div>
+                                            <?php endforeach; ?>
                                         <?php endif; ?>
                                     </div>
-                                    <div class="notification-message"><?php echo htmlspecialchars($notification['message']); ?></div>
-                                    <div class="notification-date"><?php echo date('M d, Y', strtotime($notification['date'])); ?></div>
+                                    <div class="text-center mt-3">
+                                        <a href="activities.php" class="btn btn-outline-primary">
+                                            Click to View All
+                                            <i class="bi bi-arrow-right ms-1"></i>
+                                        </a>
+                                    </div>
                                 </div>
-                            <?php endforeach; ?>
-                            <div class="text-center mt-3">
-                                <a href="notifications.php" class="btn btn-sm btn-outline-primary">View All Notifications</a>
                             </div>
-                        <?php endif; ?>
+                        </div>
+                        
+                        <!-- Activity Status Section -->
+                        <div class="col-md-6 mb-4">
+                            <div class="card dashboard-card">
+                                <div class="card-header py-3">
+                                    <h5 class="mb-0">Activity Status</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6 text-center mb-4">
+                                            <h5 class="text-muted mb-3">Completed Activities</h5>
+                                            <div class="d-flex align-items-center justify-content-center mb-3">
+                                                <div style="width: 120px; height: 120px;" class="rounded-circle d-flex align-items-center justify-content-center border border-success border-3">
+                                                    <h1 class="display-4 mb-0 text-success"><?php echo $completedCount; ?></h1>
+                                                </div>
+                                            </div>
+                                            <button class="btn status-button completed-btn">
+                                                <i class="bi bi-check-circle me-1"></i> Completed
+                                            </button>
+                                        </div>
+                                        
+                                        <div class="col-md-6 text-center mb-4">
+                                            <h5 class="text-muted mb-3">Missed Activities</h5>
+                                            <div class="d-flex align-items-center justify-content-center mb-3">
+                                                <div style="width: 120px; height: 120px;" class="rounded-circle d-flex align-items-center justify-content-center border border-danger border-3">
+                                                    <h1 class="display-4 mb-0 text-danger"><?php echo $missedCount; ?></h1>
+                                                </div>
+                                            </div>
+                                            <button class="btn status-button missed-btn">
+                                                <i class="bi bi-x-circle me-1"></i> Missed
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                
-                <!-- Middle Column -->
-                <div class="col-lg-4">
-                    <!-- Summary Cards -->
+                    
+                    <!-- Recent Updates & Calendar Row -->
                     <div class="row">
-                        <div class="col-md-6 col-lg-12">
-                            <div class="summary-card bg-health">
-                                <div class="summary-icon">
-                                    <i class="fas fa-heartbeat"></i>
+                        <!-- Recent Updates -->
+                        <div class="col-md-7 mb-4">
+                            <div class="card dashboard-card">
+                                <div class="card-header d-flex justify-content-between align-items-center py-3">
+                                    <h5 class="mb-0">Recent Updates</h5>
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="updateFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                            Filter
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="updateFilterDropdown">
+                                            <li><a class="dropdown-item" href="#">All Updates</a></li>
+                                            <li><a class="dropdown-item" href="#">Program Updates</a></li>
+                                            <li><a class="dropdown-item" href="#">System Updates</a></li>
+                                        </ul>
+                                    </div>
                                 </div>
-                                <div class="summary-info">
-                                    <div class="summary-value">PHP 750</div>
-                                    <div class="summary-label">Health Grant</div>
+                                <div class="card-body p-0">
+                                    <div class="list-group list-group-flush">
+                                        <?php if (empty($updates)): ?>
+                                        <div class="text-center text-muted py-4">
+                                            <i class="bi bi-info-circle fs-1"></i>
+                                            <p class="mt-2">No updates available.</p>
+                                        </div>
+                                        <?php else: ?>
+                                            <?php foreach ($updates as $update): ?>
+                                            <div class="list-group-item border-start-0 border-end-0 py-3 px-4">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="flex-shrink-0 me-3">
+                                                        <div class="bg-<?php 
+                                                            $type = strtolower($update['type'] ?? 'info');
+                                                            if ($type == 'financial') echo 'info';
+                                                            elseif ($type == 'education') echo 'success';
+                                                            elseif ($type == 'announcement') echo 'warning';
+                                                            else echo 'secondary';
+                                                        ?> rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
+                                                            <i class="bi bi-<?php 
+                                                                $type = strtolower($update['type'] ?? 'info');
+                                                                if ($type == 'financial') echo 'cash-coin';
+                                                                elseif ($type == 'education') echo 'book';
+                                                                elseif ($type == 'announcement') echo 'megaphone';
+                                                                else echo 'info-circle';
+                                                            ?> text-white fs-4"></i>
+                                                        </div>
+                                                    </div>
+                                                    <div class="flex-grow-1">
+                                                        <div class="d-flex justify-content-between align-items-center">
+                                                            <h6 class="mb-1"><?php echo htmlspecialchars($update['title']); ?></h6>
+                                                            <span class="text-muted small">
+                                                                <?php 
+                                                                $created = new DateTime($update['created_at']);
+                                                                $now = new DateTime();
+                                                                $diff = $now->diff($created);
+                                                                
+                                                                if ($diff->d == 0) {
+                                                                    if ($diff->h == 0) {
+                                                                        echo $diff->i . ' minutes ago';
+                                                                    } else {
+                                                                        echo $diff->h . ' hours ago';
+                                                                    }
+                                                                } elseif ($diff->d == 1) {
+                                                                    echo 'Yesterday';
+                                                                } else {
+                                                                    echo $diff->d . ' days ago';
+                                                                }
+                                                                ?>
+                                                            </span>
+                                                        </div>
+                                                        <p class="mb-0 text-muted"><?php echo htmlspecialchars($update['content']); ?></p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-white text-center py-3">
+                                    <a href="updates.php" class="text-decoration-none">View All Updates <i class="bi bi-arrow-right ms-1"></i></a>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-6 col-lg-12">
-                            <div class="summary-card bg-education">
-                                <div class="summary-icon">
-                                    <i class="fas fa-graduation-cap"></i>
+                        
+                        <!-- Upcoming Calendar Events -->
+                        <div class="col-md-5 mb-4">
+                            <div class="card dashboard-card">
+                                <div class="card-header d-flex justify-content-between align-items-center py-3">
+                                    <h5 class="mb-0">Upcoming Events</h5>
+                                    <a href="calendar.php" class="btn btn-sm btn-outline-primary">Full Calendar</a>
                                 </div>
-                                <div class="summary-info">
-                                    <div class="summary-value">PHP 1,500</div>
-                                    <div class="summary-label">Education Grant</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6 col-lg-12">
-                            <div class="summary-card bg-fds">
-                                <div class="summary-icon">
-                                    <i class="fas fa-users"></i>
-                                </div>
-                                <div class="summary-info">
-                                    <div class="summary-value">4 of 6</div>
-                                    <div class="summary-label">FDS Sessions Attended</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6 col-lg-12">
-                            <div class="summary-card bg-rice">
-                                <div class="summary-icon">
-                                    <i class="fas fa-utensils"></i>
-                                </div>
-                                <div class="summary-info">
-                                    <div class="summary-value">PHP 600</div>
-                                    <div class="summary-label">Rice Subsidy</div>
+                                <div class="card-body p-0">
+                                    <div class="list-group list-group-flush">
+                                        <?php if (empty($events)): ?>
+                                        <div class="text-center text-muted py-4">
+                                            <i class="bi bi-calendar fs-1"></i>
+                                            <p class="mt-2">No upcoming events.</p>
+                                        </div>
+                                        <?php else: ?>
+                                            <?php foreach ($events as $event): ?>
+                                            <div class="list-group-item border-start-0 border-end-0 py-3 px-4">
+                                                <div class="d-flex">
+                                                    <div class="me-3 text-center" style="min-width: 60px;">
+                                                        <?php 
+                                                        $event_date = new DateTime($event['event_date']);
+                                                        $now = new DateTime();
+                                                        $text_class = ($event_date < $now) ? 'text-muted' : (($event_date->format('Y-m-d') == $now->format('Y-m-d')) ? 'text-primary' : 'text-danger');
+                                                        ?>
+                                                        <h5 class="mb-0 <?php echo $text_class; ?>"><?php echo $event_date->format('d'); ?></h5>
+                                                        <small class="text-muted"><?php echo $event_date->format('M'); ?></small>
+                                                    </div>
+                                                    <div>
+                                                        <h6 class="mb-1"><?php echo htmlspecialchars($event['title']); ?></h6>
+                                                        <p class="mb-0 text-muted small"><i class="bi bi-clock me-1"></i> <?php echo date('g:i A', strtotime($event['event_time'])); ?> - <?php echo date('g:i A', strtotime($event['end_time'])); ?></p>
+                                                        <p class="mb-0 text-muted small"><i class="bi bi-geo-alt me-1"></i> <?php echo htmlspecialchars($event['location']); ?></p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                
-                <!-- Right Column -->
-                <div class="col-lg-4">
-                    <!-- Compliance Status Card -->
-                    <div class="dashboard-card">
-                        <div class="card-header">
-                            <h3 class="card-title">Compliance Status</h3>
-                            <div class="card-icon icon-success">
-                                <i class="fas fa-check-circle"></i>
-                            </div>
-                        </div>
-                        <div class="compliance-item">
-                            <div class="compliance-label">
-                                <span>Health</span>
-                                <span class="compliance-status <?php echo $compliance['health']['status'] === 'Compliant' ? 'status-compliant' : 'status-noncompliant'; ?>">
-                                    <?php echo $compliance['health']['status']; ?>
-                                </span>
-                            </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+        
+        // Mobile sidebar toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.getElementById('sidebar');
+            const sidebarToggle = document.querySelector('.sidebar-toggle');
+            
+            if (sidebarToggle) {
+                sidebarToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('show');
+                });
+            }
+            
+            // Close sidebar when clicking outside on mobile
+            document.addEventListener('click', function(event) {
+                if (window.innerWidth < 992) {
+                    const isClickInsideSidebar = sidebar.contains(event.target);
+                    const isClickOnToggle = sidebarToggle.contains(event.target);
+                    
+                    if (!isClickInsideSidebar && !isClickOnToggle && sidebar.classList.contains('show')) {
+                        sidebar.classList.remove('show');
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
