@@ -60,7 +60,7 @@ try {
     
     // Set default values in case of database error
     $user = [
-        'full_name' => $_SESSION['full_name'] ?? 'User',
+        'firstname' => $_SESSION['firstname'] ?? 'User',
         'role' => $_SESSION['role'] ?? 'beneficiary',
         'profile_image' => 'assets/images/profile-placeholder.png'
     ];
@@ -79,7 +79,7 @@ try {
 }
 
 // Determine display name and role for the sidebar
-$displayName = $user['full_name'] ?? $_SESSION['full_name'] ?? 'User';
+$displayName = $user['firstname'] ?? $_SESSION['firstname'] ?? 'User';
 $displayRole = strtoupper($user['role'] ?? $_SESSION['role'] ?? 'BENEFICIARY');
 //$profileImage = !empty($user['profile_image']) ? $user['profile_image'] : 
                 //(!empty($user['valid_id_path']) ? $user['valid_id_path'] : 'assets/images/profile-placeholder.png');

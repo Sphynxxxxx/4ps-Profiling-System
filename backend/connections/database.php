@@ -149,4 +149,8 @@ class Database {
     public function closeConnection() {
         $this->conn->close();
     }
+
+    public function getLastInsertId() {
+        return $this->connection->lastInsertId();
+    }
 }

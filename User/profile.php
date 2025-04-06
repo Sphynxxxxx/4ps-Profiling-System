@@ -10,7 +10,6 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// Initialize variables
 $success_message = '';
 $error_message = '';
 $profile_updated = false;
@@ -23,12 +22,12 @@ try {
     $userSql = "SELECT * FROM users WHERE user_id = ?";
     $user = $db->fetchOne($userSql, [$userId]) ?? [];
 
-    // Provide default values for missing fields
     $defaultValues = [
-        'full_name' => $_SESSION['full_name'] ?? 'User',
+        'firstname' => $_SESSION['firstname'] ?? 'User',
+        'lastname' => $_SESSION['lastname'] ?? '',
         'email' => $_SESSION['email'] ?? '',
         'phone_number' => '',
-        'address' => '',
+        'barangay' => '',
         'date_of_birth' => date('Y-m-d', strtotime('-30 years')),
         'gender' => 'male',
         'civil_status' => 'single',
@@ -49,10 +48,8 @@ try {
         'account_status' => 'active'
     ];
     
-    // Initialize user with default values
     $user = $user ?: [];
     
-    // Merge existing data with defaults
     foreach ($defaultValues as $key => $value) {
         if (!isset($user[$key])) {
             $user[$key] = $value;
@@ -63,7 +60,6 @@ try {
 
     // Process form submission for profile update
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        // Check if this is a profile picture update
         if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] == 0) {
             $allowed = ['jpg', 'jpeg', 'png'];
             $filename = $_FILES['profile_picture']['name'];
@@ -71,7 +67,6 @@ try {
             if (in_array(strtolower($filetype), $allowed)) {
                 $newFilename = 'profile_' . $userId . '_' . time() . '.' . $filetype;
                 $uploadPath = 'uploads/profiles/' . $newFilename;
-                // Create directory if it doesn't exist
                 if (!file_exists('uploads/profiles/')) {
                     mkdir('uploads/profiles/', 0777, true);
                 }
@@ -96,11 +91,11 @@ try {
         }
         // Check if this is a general profile update
         elseif (isset($_POST['update_profile'])) {
-            // Validate input for general profile updates
-            $full_name = trim($_POST['full_name'] ?? '');
+            $firstname = trim($_POST['firstname'] ?? '');
+            $lastname = trim($_POST['lastname'] ?? '');
             $email = trim($_POST['email'] ?? '');
             $phone_number = trim($_POST['phone_number'] ?? '');
-            $address = trim($_POST['address'] ?? '');
+            $barangay = trim($_POST['barangay'] ?? '');
             $date_of_birth = $_POST['date_of_birth'] ?? '';
             $gender = $_POST['gender'] ?? 'male';
             $civil_status = $_POST['civil_status'] ?? 'single';
@@ -114,8 +109,10 @@ try {
             $household_income = (float)($_POST['household_income'] ?? 0);
             $income_source = trim($_POST['income_source'] ?? '');
 
-            if (empty($full_name)) {
-                $error_message = 'Full name is required';
+            if (empty($firstname)) {
+                $error_message = 'First name is required';
+            } elseif (empty($lastname)) {
+                $error_message = 'Last name is required';
             } elseif (empty($email)) {
                 $error_message = 'Email is required';
             } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -129,10 +126,11 @@ try {
                 } else {
                     // Update user information
                     $updateUserSql = "UPDATE users SET 
-                        full_name = ?, 
+                        firstname = ?, 
+                        lastname = ?, 
                         email = ?, 
                         phone_number = ?, 
-                        address = ?,
+                        barangay = ?,
                         date_of_birth = ?,
                         gender = ?,
                         civil_status = ?,
@@ -148,10 +146,11 @@ try {
                         updated_at = NOW() 
                         WHERE user_id = ?";
                     $db->execute($updateUserSql, [
-                        $full_name, 
+                        $firstname, 
+                        $lastname, 
                         $email, 
                         $phone_number, 
-                        $address,
+                        $barangay,
                         $date_of_birth,
                         $gender,
                         $civil_status,
@@ -168,10 +167,10 @@ try {
                     ]);
 
                     // Update session information
-                    $_SESSION['full_name'] = $full_name;
+                    $_SESSION['firstname'] = $firstname;
+                    $_SESSION['lastname'] = $lastname;
                     $_SESSION['email'] = $email;
 
-                    // Handle ID documents upload
                     if (isset($_FILES['valid_id']) && $_FILES['valid_id']['error'] == 0) {
                         $allowed = ['jpg', 'jpeg', 'png', 'pdf'];
                         $filename = $_FILES['valid_id']['name'];
@@ -179,7 +178,6 @@ try {
                         if (in_array(strtolower($filetype), $allowed)) {
                             $newFilename = 'valid_id_' . $userId . '_' . time() . '.' . $filetype;
                             $uploadPath = 'uploads/ids/' . $newFilename;
-                            // Create directory if it doesn't exist
                             if (!file_exists('uploads/ids/')) {
                                 mkdir('uploads/ids/', 0777, true);
                             }
@@ -198,7 +196,6 @@ try {
                         if (in_array(strtolower($filetype), $allowed)) {
                             $newFilename = 'residency_' . $userId . '_' . time() . '.' . $filetype;
                             $uploadPath = 'uploads/residency/' . $newFilename;
-                            // Create directory if it doesn't exist
                             if (!file_exists('uploads/residency/')) {
                                 mkdir('uploads/residency/', 0777, true);
                             }
@@ -214,10 +211,8 @@ try {
                     }
                     $profile_updated = true;
 
-                    // Refresh user data
                     $user = $db->fetchOne($userSql, [$userId]);
                     
-                    // Reapply default values for any missing fields
                     foreach ($defaultValues as $key => $value) {
                         if (!isset($user[$key])) {
                             $user[$key] = $value;
@@ -245,7 +240,6 @@ try {
         } elseif (!password_verify($current_password, $user['password'])) {
             $error_message = 'Current password is incorrect';
         } else {
-            // Update password
             $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
             $updatePasswordSql = "UPDATE users SET password = ? WHERE user_id = ?";
             $db->execute($updatePasswordSql, [$hashed_password, $userId]);
@@ -254,16 +248,13 @@ try {
         }
     }
 
-    // Close database connection
     $db->closeConnection();
 } catch (Exception $e) {
-    // Log error
     error_log("Profile Error: " . $e->getMessage());
     $error_message = 'An error occurred while loading your profile. Please try again later.';
 }
 
-// Determine display name and role for the sidebar
-$displayName = $user['full_name'] ?? $_SESSION['full_name'] ?? 'User';
+$displayName = $user['firstname'] . ' ' . $user['lastname'] ?? '';
 $displayRole = ucfirst($user['role'] ?? $_SESSION['role'] ?? 'Resident');
 ?>
 
@@ -859,9 +850,15 @@ $displayRole = ucfirst($user['role'] ?? $_SESSION['role'] ?? 'Resident');
                                 <input type="hidden" name="update_profile" value="1">
                                 
                                 <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label for="full_name" class="form-label">Full Name</label>
-                                        <input type="text" class="form-control" id="full_name" name="full_name" value="<?php echo htmlspecialchars($user['full_name']); ?>" required>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="firstname" class="form-label">First Name</label>
+                                            <input type="text" class="form-control" id="firstname" name="firstname" value="<?php echo htmlspecialchars($user['firstname']); ?>" required>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="lastname" class="form-label">Last Name</label>
+                                            <input type="text" class="form-control" id="lastname" name="lastname" value="<?php echo htmlspecialchars($user['lastname']); ?>" required>
+                                        </div>
                                     </div>
                                     
                                     <div class="col-md-6 mb-3">
@@ -900,8 +897,8 @@ $displayRole = ucfirst($user['role'] ?? $_SESSION['role'] ?? 'Resident');
                                     </div>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="address" class="form-label">Address</label>
-                                    <textarea class="form-control" id="address" name="address" rows="2"><?php echo htmlspecialchars($user['address']); ?></textarea>
+                                    <label for="barangay" class="form-label">Barangay</label>
+                                    <textarea class="form-control" id="barangay" name="barangay" rows="2"><?php echo htmlspecialchars($user['barangay']); ?></textarea>
                                 </div>
                                 <div class="row">
                                     <div class="col-md-4 mb-3">

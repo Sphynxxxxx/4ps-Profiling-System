@@ -372,6 +372,25 @@ body {
     display: none;
 }
 
+/* Add this to your CSS */
+.nav-tabs .nav-link {
+    color: #495057;
+    font-weight: 500;
+    border: none;
+    padding: 0.75rem 1.25rem;
+}
+
+.nav-tabs .nav-link.active {
+    color: var(--dswd-blue);
+    background-color: transparent;
+    border-bottom: 3px solid var(--dswd-blue);
+}
+
+.nav-tabs .nav-link:hover:not(.active) {
+    border-color: transparent;
+    color: var(--dswd-blue);
+}
+
 /* Responsive styles */
 @media (max-width: 1199.98px) {
     .feature-card .card-img-container {

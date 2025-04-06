@@ -7,8 +7,8 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 $email = $password = $confirmPassword = "";
-$fullName = $dateOfBirth = $gender = $civilStatus = "";
-$phoneNumber = $emailAddress = $address = $region = $province = $city = "";
+$firstName = $lastName = $dateOfBirth = $gender = $civilStatus = "";
+$phoneNumber = $emailAddress = $barangay = $region = $province = $city = "";
 $householdMembers = $dependants = $familyHead = $occupation = "";
 $householdIncome = $incomeSource = $otherIncomeSource = "";
 $verificationCode = "";
@@ -54,10 +54,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
     
     // Personal Information
-    if (empty($_POST["fullname"])) {
-        $errors["fullname"] = "Full name is required";
+    if (empty($_POST["firstname"])) {
+        $errors["firstname"] = "First name is required";
     } else {
-        $fullName = test_input($_POST["fullname"]);
+        $firstName = test_input($_POST["firstname"]);
+    }
+    
+    if (empty($_POST["lastname"])) {
+        $errors["lastname"] = "Last name is required";
+    } else {
+        $lastName = test_input($_POST["lastname"]);
     }
     
     if (empty($_POST["dob"])) {
@@ -107,10 +113,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
     }
     
-    if (empty($_POST["address"])) {
-        $errors["address"] = "Address is required";
+    if (empty($_POST["barangay"])) {
+        $errors["barangay"] = "Address is required";
     } else {
-        $address = test_input($_POST["address"]);
+        $address = test_input($_POST["barangay"]);
     }
     
     if (empty($_POST["region"])) {
@@ -324,20 +330,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         $finalIncomeSource = "OTHERS: " . $otherIncomeSource;
                     }
                     
-                    $insertSql = "INSERT INTO users (email, password, full_name, date_of_birth, gender, civil_status, 
-                                 phone_number, address, region, province, city, household_members, dependants, 
+                    $insertSql = "INSERT INTO users (email, password, firstname, lastname, date_of_birth, gender, civil_status, 
+                                 phone_number, barangay, region, province, city, household_members, dependants, 
                                  family_head, occupation, household_income, income_source, valid_id_path, proof_of_residency_path) 
-                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
                     
                     $params = [
                         $email,
                         $hashedPassword,
-                        $fullName,
+                        $firstName,
+                        $lastName,
                         $dateOfBirth,
                         $gender,
                         $civilStatus,
                         $phoneNumber,
-                        $address,
+                        $barangay,
                         $region,
                         $province,
                         $city,
@@ -1017,10 +1024,17 @@ if (!empty($success_msg)) {
                             <h2 class="section-title">Personal Information</h2>
                             
                             <div class="mb-3">
-                                <label for="fullname" class="form-label">Full Name:</label>
-                                <input type="text" class="form-control <?php echo (!empty($errors['fullname'])) ? 'is-invalid' : ''; ?>" id="fullname" name="fullname" value="<?php echo $fullName; ?>">
-                                <?php if(!empty($errors['fullname'])): ?>
-                                    <div class="invalid-feedback"><?php echo $errors['fullname']; ?></div>
+                                <label for="firstname" class="form-label">First Name:</label>
+                                <input type="text" class="form-control <?php echo (!empty($errors['firstname'])) ? 'is-invalid' : ''; ?>" id="firstname" name="firstname" value="<?php echo $firstName; ?>">
+                                <?php if(!empty($errors['firstname'])): ?>
+                                    <div class="invalid-feedback"><?php echo $errors['firstname']; ?></div>
+                                <?php endif; ?>
+                            </div>
+                            <div class="mb-3">
+                                <label for="lastname" class="form-label">Last Name:</label>
+                                <input type="text" class="form-control <?php echo (!empty($errors['lastname'])) ? 'is-invalid' : ''; ?>" id="lastname" name="lastname" value="<?php echo $lastName; ?>">
+                                <?php if(!empty($errors['lastname'])): ?>
+                                    <div class="invalid-feedback"><?php echo $errors['lastname']; ?></div>
                                 <?php endif; ?>
                             </div>
                             
@@ -1081,11 +1095,24 @@ if (!empty($success_msg)) {
                                 <?php endif; ?>
                             </div>
                             
-                            <div class="mb-3">
+                            <!--<div class="mb-3">
                                 <label for="address" class="form-label">Address:</label>
-                                <input type="text" class="form-control <?php echo (!empty($errors['address'])) ? 'is-invalid' : ''; ?>" id="address" name="address" value="<?php echo $address; ?>">
+                                <input type="text" class="form-control <?php echo (!empty($errors['barangay'])) ? 'is-invalid' : ''; ?>" id="address" name="address" value="<?php echo $address; ?>" placeholder="Street address">
                                 <?php if(!empty($errors['address'])): ?>
                                     <div class="invalid-feedback"><?php echo $errors['address']; ?></div>
+                                <?php endif; ?>
+                            </div>-->
+
+                            <div class="mb-3">
+                                <label for="barangay" class="form-label">Barangay:</label>
+                                <select class="form-select <?php echo (!empty($errors['barangay'])) ? 'is-invalid' : ''; ?>" id="barangay" name="barangay">
+                                    <option value="" selected disabled>Select Barangay</option>
+                                    <option value="1" <?php echo (isset($barangay) && $barangay == "1") ? 'selected' : ''; ?>>Barangay 1</option>
+                                    <option value="2" <?php echo (isset($barangay) && $barangay == "2") ? 'selected' : ''; ?>>Barangay 2</option>
+                                    <option value="3" <?php echo (isset($barangay) && $barangay == "3") ? 'selected' : ''; ?>>Barangay 3</option>
+                                </select>
+                                <?php if(!empty($errors['barangay'])): ?>
+                                    <div class="invalid-feedback"><?php echo $errors['barangay']; ?></div>
                                 <?php endif; ?>
                             </div>
                             
@@ -1382,7 +1409,7 @@ if (!empty($success_msg)) {
                     <p>We collect personal information including but not limited to:</p>
                     <ul>
                         <li>Personal details (name, date of birth, gender, civil status)</li>
-                        <li>Contact information (address, phone number, email)</li>
+                        <li>Contact information (barangay, phone number, email)</li>
                         <li>Family information (household composition, dependents)</li>
                         <li>Socio-economic data (income, employment status)</li>
                         <li>Supporting documents (ID, proof of residency)</li>

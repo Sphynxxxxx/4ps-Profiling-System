@@ -64,7 +64,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $db = new Database();
             
             // Get user by email
-            $sql = "SELECT user_id, email, password, full_name, role, account_status FROM users WHERE email = ?";
+            $sql = "SELECT user_id, email, password, firstname, lastname, role, account_status FROM users WHERE email = ?";
             $user = $db->fetchOne($sql, [$email]);
             
             if ($user) {
@@ -81,7 +81,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     // Store user data in session
                     $_SESSION['user_id'] = $user['user_id'];
                     $_SESSION['email'] = $user['email'];
-                    $_SESSION['full_name'] = $user['full_name'];
+                    $_SESSION['firstname'] = $user['firstname'];
+                    $_SESSION['lastname'] = $user['lastname'];
                     $_SESSION['role'] = $user['role'];
                     $_SESSION['last_activity'] = time(); // Add this for session timeout tracking
                     
