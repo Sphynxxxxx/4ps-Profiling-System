@@ -292,8 +292,8 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="logout.php">
-                    <i class="bi bi-box-arrow-right"></i> Logout
+                <a class="nav-link" href="../admin.php">
+                    <i class="bi bi-box-arrow-right"></i> Back
                 </a>
             </li>
         </ul>
@@ -423,37 +423,7 @@ try {
         </div>
         <?php endif; ?>
         
-        <!-- Barangay Cards -->
-        <h2 class="mb-4 text-center text-primary">Manage Barangay Beneficiaries</h2>
-        <div class="row">
-            <?php if(empty($barangays)): ?>
-                <div class="col-12 text-center">
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle me-2"></i> No barangay data available. Please add barangays to the system.
-                    </div>
-                </div>
-            <?php else: ?>
-                <?php foreach($barangays as $barangay): ?>
-                    <div class="col-lg-4 col-md-6 mb-4">
-                        <div class="feature-card">
-                            <div class="feature-card <?php echo ($barangay['barangay_id'] == $selected_barangay_id) ? 'border border-primary' : ''; ?>">
-                            <div class="card-img-container">
-                                <img src="<?php echo !empty($barangay['image_path']) ? $barangay['image_path'] : 'assets/images/barangay-default.jpg'; ?>" alt="<?php echo htmlspecialchars($barangay['name']); ?>">
-                            </div>
-                            <div class="card-content">
-                                <h3><?php echo htmlspecialchars(strtoupper($barangay['name'])); ?></h3>
-                                <p class="caption"><?php echo htmlspecialchars($barangay['captain_name']); ?></p>
-                                <p>Total beneficiaries: <?php echo number_format($barangay['total_beneficiaries']); ?></p>
-                                <div class="d-grid gap-2">
-                                    <a href="barangay_details.php?id=<?php echo $barangay['barangay_id']; ?>" class="btn btn-primary">Manage Beneficiaries</a>
-                                    <a href="barangay_reports.php?id=<?php echo $barangay['barangay_id']; ?>" class="btn btn-outline-secondary">View Reports</a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            <?php endif; ?>
-        </div>
+        
         
         <div class="row mt-4">
             <!-- Recent Activities -->

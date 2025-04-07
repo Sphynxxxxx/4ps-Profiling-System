@@ -27,25 +27,25 @@ try {
                 
                 // Insert into beneficiaries table
                 if ($user) {
-                    // First check if barangay exists, if not create it
-                    $barangayQuery = "SELECT barangay_id FROM barangays WHERE name = ?";
-                    $barangay = $db->fetchOne($barangayQuery, [$user['city']]);
-
-                    $barangay_id = 0;
+                    // Use the barangay_id directly from the user record
+                    $barangay_id = $user['barangay'];
+                    
+                    // Validate the barangay_id exists
+                    $barangayQuery = "SELECT barangay_id FROM barangays WHERE barangay_id = ?";
+                    $barangay = $db->fetchOne($barangayQuery, [$barangay_id]);
+                    
                     if (!$barangay) {
-                        // Create new barangay
-                        $insertBarangayQuery = "INSERT INTO barangays (name) VALUES (?)";
-                        $db->execute($insertBarangayQuery, [$user['barangay']]);
+                        // If somehow the barangay doesn't exist, create a fallback barangay
+                        // Use a unique name (e.g., combining city and a timestamp)
+                        $uniqueName = $user['city'] . '_' . time();
+                        $insertBarangayQuery = "INSERT INTO barangays (name, created_at) VALUES (?, NOW())";
+                        $db->execute($insertBarangayQuery, [$uniqueName]);
                         
-                        // Get the inserted ID - now using the proper method
                         $barangay_id = $db->getLastInsertId();
                         
-                        // Verify we got an ID
                         if (!$barangay_id) {
                             throw new Exception("Failed to get barangay ID after insertion");
                         }
-                    } else {
-                        $barangay_id = $barangay['barangay_id'];
                     }
                     
                     // Insert into beneficiaries
@@ -71,28 +71,7 @@ try {
                 $db->execute($logQuery, [$_SESSION['admin_id'] ?? 1, "Rejected user ID {$user_id} verification"]);
                 
                 $success_message = "User application has been rejected.";
-            }
-
-            elseif ($action === 'delete') {
-                // First delete from beneficiaries if exists
-                $deleteBeneficiaryQuery = "DELETE FROM beneficiaries WHERE user_id = ?";
-                $db->execute($deleteBeneficiaryQuery, [$user_id]);
-                
-                // Then delete the user
-                $deleteUserQuery = "DELETE FROM users WHERE user_id = ?";
-                $db->execute($deleteUserQuery, [$user_id]);
-                
-                // Log activity
-                $logQuery = "INSERT INTO activity_logs (user_id, activity_type, description, created_at) 
-                            VALUES (?, 'deletion', ?, NOW())";
-                $db->execute($logQuery, [$_SESSION['admin_id'] ?? 1, "Deleted user ID {$user_id}"]);
-                
-                $success_message = "User has been deleted successfully.";
-                
-                // Refresh the page to update the lists
-                header("Refresh:0");
-                exit();
-            }elseif ($action === 'delete') {
+            } elseif ($action === 'delete') {
                 // First delete from beneficiaries if exists
                 $deleteBeneficiaryQuery = "DELETE FROM beneficiaries WHERE user_id = ?";
                 $db->execute($deleteBeneficiaryQuery, [$user_id]);
@@ -140,20 +119,26 @@ try {
     $rejected_users_count = $result ? $result['rejected'] : 0;
     
     // Get all pending users without pagination
-    $pendingUsersQuery = "SELECT * FROM users 
-    WHERE account_status = 'pending' AND role = 'resident'
-    ORDER BY created_at DESC";
+    $pendingUsersQuery = "SELECT u.*, b.name as barangay_name 
+        FROM users u 
+        LEFT JOIN barangays b ON u.barangay = b.barangay_id 
+        WHERE u.account_status = 'pending' AND u.role = 'resident'
+        ORDER BY u.created_at DESC";
     $pending_users = $db->fetchAll($pendingUsersQuery);
 
     // Add these queries to fetch approved and rejected users
-    $approvedUsersQuery = "SELECT * FROM users 
-    WHERE account_status = 'active' AND role = 'resident'
-    ORDER BY created_at DESC";
+    $approvedUsersQuery = "SELECT u.*, b.name as barangay_name 
+        FROM users u 
+        LEFT JOIN barangays b ON u.barangay = b.barangay_id 
+        WHERE u.account_status = 'active' AND u.role = 'resident'
+        ORDER BY u.created_at DESC";
     $approved_users = $db->fetchAll($approvedUsersQuery);
 
-    $rejectedUsersQuery = "SELECT * FROM users 
-    WHERE account_status = 'deactivated' AND role = 'resident'
-    ORDER BY created_at DESC";
+    $rejectedUsersQuery = "SELECT u.*, b.name as barangay_name 
+        FROM users u 
+        LEFT JOIN barangays b ON u.barangay = b.barangay_id 
+        WHERE u.account_status = 'deactivated' AND u.role = 'resident'
+        ORDER BY u.created_at DESC";
     $rejected_users = $db->fetchAll($rejectedUsersQuery);
     
     $db->closeConnection();
@@ -244,8 +229,8 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="logout.php">
-                    <i class="bi bi-box-arrow-right"></i> Logout
+                <a class="nav-link" href="../admin.php">
+                    <i class="bi bi-box-arrow-right"></i> Back
                 </a>
             </li>
         </ul>
@@ -357,7 +342,7 @@ try {
                                             </div>
                                         </td>
                                         <td><?php echo date('M d, Y', strtotime($user['date_of_birth'])); ?></td>
-                                        <td><?php echo htmlspecialchars($user['barangay'] . ', ' . $user['barangay']); ?></td>
+                                        <td><?php echo htmlspecialchars($user['barangay_name'] ?? 'Unknown'); ?>, <?php echo htmlspecialchars($user['province']); ?> <?php echo htmlspecialchars($user['city']); ?></td>
                                         <td><?php echo $user['household_members']; ?> (<?php echo $user['dependants']; ?> dependants)</td>
                                         <td>₱<?php echo number_format($user['household_income'], 2); ?></td>
                                         <td><?php echo date('M d, Y', strtotime($user['created_at'])); ?></td>

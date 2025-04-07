@@ -18,6 +18,15 @@ if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
+$barangays = [];
+try {
+    $db = new Database();
+    $barangaysQuery = "SELECT barangay_id, name FROM barangays ORDER BY name ASC";
+    $barangays = $db->fetchAll($barangaysQuery);
+} catch (Exception $e) {
+    error_log("Error fetching barangays: " . $e->getMessage());
+}
+
 // Process form submission
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Account Credentials
@@ -116,7 +125,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (empty($_POST["barangay"])) {
         $errors["barangay"] = "Address is required";
     } else {
-        $address = test_input($_POST["barangay"]);
+        $barangay = test_input($_POST["barangay"]);
     }
     
     if (empty($_POST["region"])) {
@@ -1107,9 +1116,15 @@ if (!empty($success_msg)) {
                                 <label for="barangay" class="form-label">Barangay:</label>
                                 <select class="form-select <?php echo (!empty($errors['barangay'])) ? 'is-invalid' : ''; ?>" id="barangay" name="barangay">
                                     <option value="" selected disabled>Select Barangay</option>
-                                    <option value="1" <?php echo (isset($barangay) && $barangay == "1") ? 'selected' : ''; ?>>Barangay 1</option>
-                                    <option value="2" <?php echo (isset($barangay) && $barangay == "2") ? 'selected' : ''; ?>>Barangay 2</option>
-                                    <option value="3" <?php echo (isset($barangay) && $barangay == "3") ? 'selected' : ''; ?>>Barangay 3</option>
+                                    <?php if(empty($barangays)): ?>
+                                        <option value="" disabled>No barangays available. Please contact administrator.</option>
+                                    <?php else: ?>
+                                        <?php foreach($barangays as $brgy): ?>
+                                            <option value="<?php echo $brgy['barangay_id']; ?>" <?php echo (isset($barangay) && $barangay == $brgy['barangay_id']) ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($brgy['name']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
                                 </select>
                                 <?php if(!empty($errors['barangay'])): ?>
                                     <div class="invalid-feedback"><?php echo $errors['barangay']; ?></div>

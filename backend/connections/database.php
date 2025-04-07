@@ -151,6 +151,17 @@ class Database {
     }
 
     public function getLastInsertId() {
-        return $this->connection->lastInsertId();
+        if (!$this->connection) {
+            
+            $this->connect();
+        }
+        
+        if ($this->connection) {
+            return $this->connection->lastInsertId();
+        }
+        
+        return null; 
     }
+
+    
 }
