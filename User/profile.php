@@ -64,7 +64,6 @@ try {
     }
 
     
-
     // Process form submission for profile update
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] == 0) {
