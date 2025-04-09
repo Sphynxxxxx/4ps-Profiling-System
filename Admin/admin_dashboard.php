@@ -2,6 +2,7 @@
 require_once "../backend/connections/config.php";
 require_once "../backend/connections/database.php";
 
+// Get the selected barangay ID from URL parameter
 $selected_barangay_id = isset($_GET['barangay_id']) ? intval($_GET['barangay_id']) : null;
 
 try {
@@ -14,18 +15,18 @@ try {
         $current_barangay = $db->fetchOne($barangayQuery, [$selected_barangay_id]);
     }
     
-    // Fetch statistics from database
-    $totalBeneficiariesQuery = $selected_barangay_id 
-        ? "SELECT COUNT(*) as total FROM beneficiaries WHERE barangay_id = ?" 
-        : "SELECT COUNT(*) as total FROM beneficiaries";
+    // Get total parent leaders count
+    $totalParentLeadersQuery = $selected_barangay_id 
+    ? "SELECT COUNT(*) as total FROM users WHERE role = 'resident' AND account_status = 'active' AND barangay = ?" 
+    : "SELECT COUNT(*) as total FROM users WHERE role = 'resident' AND account_status = 'active'";
     $params = $selected_barangay_id ? [$selected_barangay_id] : [];
-    $result = $params ? $db->fetchOne($totalBeneficiariesQuery, $params) : $db->fetchOne($totalBeneficiariesQuery);
-    $total_beneficiaries = $result ? $result['total'] : 0;
+    $result = $params ? $db->fetchOne($totalParentLeadersQuery, $params) : $db->fetchOne($totalParentLeadersQuery);
+    $total_parent_leaders = $result ? $result['total'] : 0;
     
-    // Pending Verifications (filtered by barangay if selected)
+    // Pending Verifications - MODIFIED: Filter by barangay if selected
     $pendingVerificationsQuery = $selected_barangay_id
         ? "SELECT COUNT(*) as pending FROM users 
-           WHERE account_status = 'pending' AND role = 'resident' AND barangay_id = ?"
+           WHERE account_status = 'pending' AND role = 'resident' AND barangay = ?"
         : "SELECT COUNT(*) as pending FROM users 
            WHERE account_status = 'pending' AND role = 'resident'";
     $params = $selected_barangay_id ? [$selected_barangay_id] : [];
@@ -59,26 +60,26 @@ try {
     }
     
     // Active and Inactive Beneficiaries
-    try {
-        $activeBeneficiariesQuery = $selected_barangay_id
-            ? "SELECT COUNT(*) as active FROM beneficiaries 
-               WHERE status = 'active' AND barangay_id = ?"
-            : "SELECT COUNT(*) as active FROM beneficiaries WHERE status = 'active'";
-        $params = $selected_barangay_id ? [$selected_barangay_id] : [];
-        $result = $params ? $db->fetchOne($activeBeneficiariesQuery, $params) : $db->fetchOne($activeBeneficiariesQuery);
-        $active_beneficiaries = $result ? $result['active'] : 0;
-        
-        $inactiveBeneficiariesQuery = $selected_barangay_id
-            ? "SELECT COUNT(*) as inactive FROM beneficiaries 
-               WHERE status = 'inactive' AND barangay_id = ?"
-            : "SELECT COUNT(*) as inactive FROM beneficiaries WHERE status = 'inactive'";
-        $params = $selected_barangay_id ? [$selected_barangay_id] : [];
-        $result = $params ? $db->fetchOne($inactiveBeneficiariesQuery, $params) : $db->fetchOne($inactiveBeneficiariesQuery);
-        $inactive_beneficiaries = $result ? $result['inactive'] : 0;
-    } catch (Exception $e) {
-        $active_beneficiaries = $total_beneficiaries;
-        $inactive_beneficiaries = 0;
-    }
+    //try {
+    //    $activeBeneficiariesQuery = $selected_barangay_id
+    //        ? "SELECT COUNT(*) as active FROM beneficiaries 
+    //           WHERE status = 'active' AND barangay_id = ?"
+    //        : "SELECT COUNT(*) as active FROM beneficiaries WHERE status = 'active'";
+    //    $params = $selected_barangay_id ? [$selected_barangay_id] : [];
+    //    $result = $params ? $db->fetchOne($activeBeneficiariesQuery, $params) : $db->fetchOne($activeBeneficiariesQuery);
+    //    $active_beneficiaries = $result ? $result['active'] : 0;
+    //    
+    //    $inactiveBeneficiariesQuery = $selected_barangay_id
+    //        ? "SELECT COUNT(*) as inactive FROM beneficiaries 
+    //           WHERE status = 'inactive' AND barangay_id = ?"
+    //        : "SELECT COUNT(*) as inactive FROM beneficiaries WHERE status = 'inactive'";
+    //    $params = $selected_barangay_id ? [$selected_barangay_id] : [];
+    //    $result = $params ? $db->fetchOne($inactiveBeneficiariesQuery, $params) : $db->fetchOne($inactiveBeneficiariesQuery);
+    //    $inactive_beneficiaries = $result ? $result['inactive'] : 0;
+    //} catch (Exception $e) {
+    //    $active_beneficiaries = $total_beneficiaries;
+    //    $inactive_beneficiaries = 0;
+    //}
     
     // Compliance Rates
     try {
@@ -129,12 +130,12 @@ try {
         $barangays = [];
     }
     
-    // Pending Users
+    // Pending Users - MODIFIED: Filter by barangay using the 'barangay' column in users table
     try {
         $pendingUsersQuery = $selected_barangay_id
             ? "SELECT user_id, firstname, lastname, email, created_at 
                FROM users 
-               WHERE account_status = 'pending' AND role = 'resident' AND barangay_id = ?
+               WHERE account_status = 'pending' AND role = 'resident' AND barangay = ?
                ORDER BY created_at DESC LIMIT 5"
             : "SELECT user_id, firstname, lastname, email, created_at 
                FROM users 
@@ -170,22 +171,28 @@ try {
         $database_size = 0;
     }
     
-    // Recent Activities
+    // Recent Activities - MODIFIED: Filter by barangay
     try {
         $activitiesQuery = $selected_barangay_id
             ? "SELECT a.activity_type, a.description, a.created_at, 
                CONCAT(u.firstname, ' ', u.lastname) as user_name 
                FROM activity_logs a 
                LEFT JOIN users u ON a.user_id = u.user_id 
-               LEFT JOIN beneficiaries ben ON u.user_id = ben.user_id
-               WHERE ben.barangay_id = ?
+               WHERE u.barangay = ? OR a.description LIKE ?
                ORDER BY a.created_at DESC LIMIT 7"
             : "SELECT a.activity_type, a.description, a.created_at, 
                CONCAT(u.firstname, ' ', u.lastname) as user_name 
                FROM activity_logs a 
                LEFT JOIN users u ON a.user_id = u.user_id 
                ORDER BY a.created_at DESC LIMIT 7";
-        $params = $selected_barangay_id ? [$selected_barangay_id] : [];
+        
+        // Use parameter binding for barangay ID and also search in activity description
+        $barangay_name = '';
+        if ($selected_barangay_id && $current_barangay) {
+            $barangay_name = $current_barangay['name'];
+        }
+        
+        $params = $selected_barangay_id ? [$selected_barangay_id, "%$barangay_name%"] : [];
         $activities = $params ? $db->fetchAll($activitiesQuery, $params) : $db->fetchAll($activitiesQuery);
     } catch (Exception $e) {
         $activities = [];
@@ -224,7 +231,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - 4P's Profiling System</title>
+    <title><?php echo $selected_barangay_id && $current_barangay ? 'Barangay ' . htmlspecialchars($current_barangay['name']) : 'All Barangays'; ?> - Admin Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link href="css/admin.css" rel="stylesheet">
@@ -248,25 +255,30 @@ try {
     <div class="sidebar" id="sidebar">
         <ul class="nav flex-column">
             <li class="nav-item">
-                <a class="nav-link active" href="admin.php">
+                <a class="nav-link active" href="admin_dashboard.php">
                     <i class="bi bi-speedometer2"></i> Dashboard
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="participant_verification.php">
-                    <i class="bi bi-person-check"></i> Participant Verification
+                <a class="nav-link" href="participant_verification.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
+                    <i class="bi bi-person-check"></i> Parent Leader Verification
                     <?php if($pending_verifications > 0): ?>
                     <span class="badge bg-danger rounded-pill ms-auto"><?php echo $pending_verifications; ?></span>
                     <?php endif; ?>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="beneficiaries.php">
+                <a class="nav-link" href="parent_leaders.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
+                    <i class="bi bi-people"></i> List of Parent Leaders
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="beneficiaries.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-people"></i> Beneficiaries
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="calendar.php">
+                <a class="nav-link" href="calendar.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-calendar3"></i> Calendar
                     <?php if($upcoming_events > 0): ?>
                     <span class="badge bg-primary rounded-pill ms-auto"><?php echo $upcoming_events; ?></span>
@@ -274,7 +286,7 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="messages.php">
+                <a class="nav-link" href="messages.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-chat-left-text"></i> Messages
                     <?php if($unread_messages > 0): ?>
                     <span class="badge bg-danger rounded-pill ms-auto"><?php echo $unread_messages; ?></span>
@@ -282,7 +294,7 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="reports.php">
+                <a class="nav-link" href="reports.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-file-earmark-text"></i> Reports
                 </a>
             </li>
@@ -297,12 +309,48 @@ try {
                 </a>
             </li>
         </ul>
+        
+        <!-- Barangay Selector -->
+        <?php if (!empty($barangays)): ?>
+        <div class="mt-4 p-3 bg-light rounded">
+            <h6 class="mb-2"><i class="bi bi-geo-alt me-2"></i>Select Barangay</h6>
+            <form action="" method="GET" id="barangayForm">
+                <select class="form-select form-select-sm" name="barangay_id" id="barangay_id" onchange="document.getElementById('barangayForm').submit();">
+                    <?php 
+                    // Remove "All Barangays" option
+                    foreach($barangays as $barangay): 
+                    ?>
+                    <option value="<?php echo $barangay['barangay_id']; ?>" 
+                        <?php 
+                        // Select the barangay by default if it matches the default or selected barangay
+                        echo (($selected_barangay_id == $barangay['barangay_id']) ? 'selected' : ''); 
+                        ?>>
+                        <?php echo htmlspecialchars($barangay['name']); ?> (<?php echo $barangay['total_beneficiaries']; ?> Parent Leaders)
+                    </option>
+                    <?php endforeach; ?>
+                </select>
+            </form>
+        </div>
+        <?php endif; ?>
     </div>
     
     
     
     <!-- Main Content -->
     <div class="main-content">
+        <!-- Barangay Header if specific barangay is selected -->
+        <?php if($selected_barangay_id && $current_barangay): ?>
+        <div class="alert alert-success mb-4" role="alert">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-building fs-1 me-3"></i>
+                <div>
+                    <h4 class="alert-heading">Barangay <?php echo htmlspecialchars($current_barangay['name']); ?> Dashboard</h4>
+                    <p class="mb-0">Barangay Captain: <?php echo htmlspecialchars($current_barangay['captain_name'] ?: 'Not Assigned'); ?></p>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+        
         <!-- Welcome Message -->
         <div class="alert alert-primary mb-4" role="alert">
             <h4 class="alert-heading"><i class="bi bi-info-circle me-2"></i>System Summary</h4>
@@ -319,8 +367,8 @@ try {
                         <div class="icon">
                             <i class="bi bi-people-fill"></i>
                         </div>
-                        <h3><?php echo number_format($total_beneficiaries); ?></h3>
-                        <p>Total Beneficiaries</p>
+                        <h3><?php echo number_format($total_parent_leaders); ?></h3>
+                        <p>Total Parent Leaders</p>
                     </div>
                 </div>
                 <div class="col-md-3 col-6 mb-4">
@@ -353,21 +401,21 @@ try {
             </div>
         </div>
         
-        <!-- Quick Access -->
+        <!-- Quick Access - Add barangay_id to URLs if specific barangay is selected -->
         <div class="quick-access mb-5">
             <div class="row">
                 <div class="col-md-3 col-6">
-                    <a href="add_beneficiary.php" class="quick-btn">
+                    <a href="add_beneficiary.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>" class="quick-btn">
                         <i class="bi bi-person-plus"></i> Add Beneficiary
                     </a>
                 </div>
                 <div class="col-md-3 col-6">
-                    <a href="generate_report.php" class="quick-btn">
+                    <a href="generate_report.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>" class="quick-btn">
                         <i class="bi bi-file-earmark-text"></i> Generate Reports
                     </a>
                 </div>
                 <div class="col-md-3 col-6">
-                    <a href="add_event.php" class="quick-btn">
+                    <a href="add_event.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>" class="quick-btn">
                         <i class="bi bi-calendar-plus"></i> Schedule Event
                     </a>
                 </div>
@@ -379,14 +427,18 @@ try {
             </div>
         </div>
         
-        <!-- Pending Verifications Section -->
+        <!-- Pending Verifications Section - Only show if there are pending verifications -->
         <?php if(!empty($pending_users)): ?>
         <div class="row mb-4">
             <div class="col-12">
                 <div class="dashboard-card">
                     <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
-                        <h3><i class="bi bi-person-check me-2"></i>Pending Verifications</h3>
-                        <a href="participant_verification.php" class="btn btn-outline-light btn-sm">View All</a>
+                        <h3><i class="bi bi-person-check me-2"></i>Pending Verifications 
+                            <?php if($selected_barangay_id && $current_barangay): ?>
+                            for Barangay <?php echo htmlspecialchars($current_barangay['name']); ?>
+                            <?php endif; ?>
+                        </h3>
+                        <a href="participant_verification.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>" class="btn btn-outline-light btn-sm">View All</a>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
@@ -408,7 +460,7 @@ try {
                                         <td><?php echo htmlspecialchars($user['email']); ?></td>
                                         <td><?php echo date('M d, Y', strtotime($user['created_at'])); ?></td>
                                         <td>
-                                            <a href="participant_verification.php?id=<?php echo $user['user_id']; ?>" class="btn btn-sm btn-primary">
+                                            <a href="participant_verification.php?id=<?php echo $user['user_id']; ?><?php echo $selected_barangay_id ? '&barangay_id='.$selected_barangay_id : ''; ?>" class="btn btn-sm btn-primary">
                                                 <i class="bi bi-eye"></i> Review
                                             </a>
                                         </td>
@@ -421,8 +473,13 @@ try {
                 </div>
             </div>
         </div>
+        <?php elseif($selected_barangay_id && $current_barangay): ?>
+        <!-- Empty state for pending verifications when filtering by barangay -->
+        <div class="alert alert-info mb-4">
+            <h5><i class="bi bi-info-circle me-2"></i>No Pending Verifications</h5>
+            <p>There are currently no pending verifications for Barangay <?php echo htmlspecialchars($current_barangay['name']); ?>.</p>
+        </div>
         <?php endif; ?>
-        
         
         
         <div class="row mt-4">
@@ -430,8 +487,12 @@ try {
             <div class="col-lg-6 mb-4">
                 <div class="activities-container">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h2><i class="bi bi-activity me-2"></i>Recent Activities</h2>
-                        <a href="activity_logs.php" class="btn btn-outline-primary btn-sm">View All</a>
+                        <h2><i class="bi bi-activity me-2"></i>Recent Activities
+                            <?php if($selected_barangay_id && $current_barangay): ?>
+                            in Barangay <?php echo htmlspecialchars($current_barangay['name']); ?>
+                            <?php endif; ?>
+                        </h2>
+                        <a href="activity_logs.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>" class="btn btn-outline-primary btn-sm">View All</a>
                     </div>
                     <div class="activity-list">
                         <?php if(empty($activities)): ?>
@@ -459,32 +520,6 @@ try {
                     </div>
                     <div class="card-body">
                         <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <div class="card h-100">
-                                    <div class="card-body">
-                                        <h5 class="card-title"><i class="bi bi-people me-2"></i>Beneficiary Statistics</h5>
-                                        <ul class="list-group list-group-flush">
-                                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                Total Registered
-                                                <span class="badge bg-primary rounded-pill"><?php echo number_format($total_beneficiaries); ?></span>
-                                            </li>
-                                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                Active Beneficiaries
-                                                <span class="badge bg-success rounded-pill"><?php echo number_format($active_beneficiaries); ?></span>
-                                            </li>
-                                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                Pending Approval
-                                                <span class="badge bg-warning rounded-pill"><?php echo number_format($pending_verifications); ?></span>
-                                            </li>
-                                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                Inactive
-                                                <span class="badge bg-danger rounded-pill"><?php echo number_format($inactive_beneficiaries); ?></span>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                            
                             <div class="col-md-6 mb-3">
                                 <div class="card h-100">
                                     <div class="card-body">
@@ -545,9 +580,9 @@ try {
                                 </div>
                             </div>
                         </div>
-                    </div>
+                                                    </div>
                     <div class="card-footer">
-                        <a href="system_reports.php" class="btn btn-primary">View Detailed System Reports</a>
+                        <a href="system_reports.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>" class="btn btn-primary">View Detailed System Reports</a>
                     </div>
                 </div>
             </div>

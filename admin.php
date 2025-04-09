@@ -662,7 +662,7 @@ try {
                             <div class="beneficiary-count">Registered 4P's: <?php echo number_format($barangay['total_beneficiaries']); ?></div>
                             
                             <div class="barangay-actions mt-3">
-                                <a href="Admin/admin_dashboard.php?id=<?php echo $barangay['barangay_id']; ?>" class="btn btn-primary flex-grow-1">
+                                <a href="Admin/admin_dashboard.php?barangay_id=<?php echo $barangay['barangay_id']; ?>" class="btn btn-primary flex-grow-1">
                                     <i class="bi bi-speedometer2"></i> View Barangay Dashboard
                                 </a>
                                 <div class="dropdown">

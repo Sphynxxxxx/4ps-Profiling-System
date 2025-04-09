@@ -7,8 +7,18 @@ $error_message = "";
 $success_message = "";
 $pending_users = [];
 
+// Get the selected barangay ID from URL parameter
+$selected_barangay_id = isset($_GET['barangay_id']) ? intval($_GET['barangay_id']) : null;
+
 try {
     $db = new Database();
+    
+    // Fetch current barangay details if a specific barangay is selected
+    $current_barangay = null;
+    if ($selected_barangay_id) {
+        $barangayQuery = "SELECT name, captain_name FROM barangays WHERE barangay_id = ?";
+        $current_barangay = $db->fetchOne($barangayQuery, [$selected_barangay_id]);
+    }
     
     // Handle verification actions if form is submitted
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -21,45 +31,19 @@ try {
                 $updateQuery = "UPDATE users SET account_status = 'active' WHERE user_id = ?";
                 $db->execute($updateQuery, [$user_id]);
                 
-                // Check if user has a barangay
+                // Check if user exists
                 $userQuery = "SELECT * FROM users WHERE user_id = ?";
                 $user = $db->fetchOne($userQuery, [$user_id]);
                 
-                // Insert into beneficiaries table
                 if ($user) {
-                    // Use the barangay_id directly from the user record
-                    $barangay_id = $user['barangay'];
-                    
-                    // Validate the barangay_id exists
-                    $barangayQuery = "SELECT barangay_id FROM barangays WHERE barangay_id = ?";
-                    $barangay = $db->fetchOne($barangayQuery, [$barangay_id]);
-                    
-                    if (!$barangay) {
-                        // If somehow the barangay doesn't exist, create a fallback barangay
-                        // Use a unique name (e.g., combining city and a timestamp)
-                        $uniqueName = $user['city'] . '_' . time();
-                        $insertBarangayQuery = "INSERT INTO barangays (name, created_at) VALUES (?, NOW())";
-                        $db->execute($insertBarangayQuery, [$uniqueName]);
-                        
-                        $barangay_id = $db->getLastInsertId();
-                        
-                        if (!$barangay_id) {
-                            throw new Exception("Failed to get barangay ID after insertion");
-                        }
-                    }
-                    
-                    // Insert into beneficiaries
-                    $insertBeneficiaryQuery = "INSERT INTO beneficiaries (user_id, household_size, barangay_id, created_at) 
-                                              VALUES (?, ?, ?, NOW())";
-                    $db->execute($insertBeneficiaryQuery, [$user_id, $user['household_members'], $barangay_id]);
-                    
                     // Log activity
                     $logQuery = "INSERT INTO activity_logs (user_id, activity_type, description, created_at) 
                                 VALUES (?, 'verification', ?, NOW())";
-                    $db->execute($logQuery, [$_SESSION['admin_id'] ?? 1, "Approved user ID {$user_id} as 4P's beneficiary"]);
+                    $db->execute($logQuery, [$_SESSION['admin_id'] ?? 1, "Approved user ID {$user_id} (not added to beneficiaries)"]);
                     
-                    $success_message = "User has been approved and added as a beneficiary.";
+                    $success_message = "User has been approved.";
                 }
+        
             } elseif ($action === 'reject') {
                 // Update user status to deactivated
                 $updateQuery = "UPDATE users SET account_status = 'deactivated' WHERE user_id = ?";
@@ -87,19 +71,26 @@ try {
                 
                 $success_message = "User has been deleted successfully.";
                 
-                // Refresh the page to update the lists
-                header("Refresh:0");
+                // Refresh the page to update the lists - maintain barangay filter if set
+                $redirect = "participant_verification.php";
+                if ($selected_barangay_id) {
+                    $redirect .= "?barangay_id=" . $selected_barangay_id;
+                }
+                header("Location: $redirect");
                 exit();
             }
         }
     }
     
-    // Get pending verification count for sidebar
-    $pendingVerificationsQuery = "SELECT COUNT(*) as pending FROM users WHERE account_status = 'pending' AND role = 'resident'";
-    $result = $db->fetchOne($pendingVerificationsQuery);
+    // Get pending verification count for sidebar - filter by barangay if selected
+    $pendingVerificationsQuery = $selected_barangay_id 
+        ? "SELECT COUNT(*) as pending FROM users WHERE account_status = 'pending' AND role = 'resident' AND barangay = ?"
+        : "SELECT COUNT(*) as pending FROM users WHERE account_status = 'pending' AND role = 'resident'";
+    $params = $selected_barangay_id ? [$selected_barangay_id] : [];
+    $result = $params ? $db->fetchOne($pendingVerificationsQuery, $params) : $db->fetchOne($pendingVerificationsQuery);
     $pending_verifications = $result ? $result['pending'] : 0;
     
-    // Get other counts for the sidebar
+    // Get other counts for the sidebar - events might be filtered by barangay if applicable
     $upcomingEventsQuery = "SELECT COUNT(*) as upcoming FROM events WHERE event_date >= CURDATE()";
     $result = $db->fetchOne($upcomingEventsQuery);
     $upcoming_events = $result ? $result['upcoming'] : 0;
@@ -108,38 +99,79 @@ try {
     $result = $db->fetchOne($unreadMessagesQuery);
     $unread_messages = $result ? $result['unread'] : 0;
 
-    // Get approved users count for sidebar (optional)
-    $approvedUsersCountQuery = "SELECT COUNT(*) as approved FROM users WHERE account_status = 'active' AND role = 'resident'";
-    $result = $db->fetchOne($approvedUsersCountQuery);
+    // Get approved users count for sidebar - filter by barangay if selected
+    $approvedUsersCountQuery = $selected_barangay_id
+        ? "SELECT COUNT(*) as approved FROM users WHERE account_status = 'active' AND role = 'resident' AND barangay = ?"
+        : "SELECT COUNT(*) as approved FROM users WHERE account_status = 'active' AND role = 'resident'";
+    $params = $selected_barangay_id ? [$selected_barangay_id] : [];
+    $result = $params ? $db->fetchOne($approvedUsersCountQuery, $params) : $db->fetchOne($approvedUsersCountQuery);
     $approved_users_count = $result ? $result['approved'] : 0;
 
-    // Get rejected users count for sidebar (optional)
-    $rejectedUsersCountQuery = "SELECT COUNT(*) as rejected FROM users WHERE account_status = 'deactivated' AND role = 'resident'";
-    $result = $db->fetchOne($rejectedUsersCountQuery);
+    // Get rejected users count for sidebar - filter by barangay if selected
+    $rejectedUsersCountQuery = $selected_barangay_id
+        ? "SELECT COUNT(*) as rejected FROM users WHERE account_status = 'deactivated' AND role = 'resident' AND barangay = ?"
+        : "SELECT COUNT(*) as rejected FROM users WHERE account_status = 'deactivated' AND role = 'resident'";
+    $params = $selected_barangay_id ? [$selected_barangay_id] : [];
+    $result = $params ? $db->fetchOne($rejectedUsersCountQuery, $params) : $db->fetchOne($rejectedUsersCountQuery);
     $rejected_users_count = $result ? $result['rejected'] : 0;
     
-    // Get all pending users without pagination
-    $pendingUsersQuery = "SELECT u.*, b.name as barangay_name 
-        FROM users u 
-        LEFT JOIN barangays b ON u.barangay = b.barangay_id 
-        WHERE u.account_status = 'pending' AND u.role = 'resident'
-        ORDER BY u.created_at DESC";
-    $pending_users = $db->fetchAll($pendingUsersQuery);
+    // Get all pending users - filter by barangay if selected
+    $pendingUsersQuery = $selected_barangay_id
+        ? "SELECT u.*, b.name as barangay_name 
+           FROM users u 
+           LEFT JOIN barangays b ON u.barangay = b.barangay_id 
+           WHERE u.account_status = 'pending' AND u.role = 'resident' AND u.barangay = ?
+           ORDER BY u.created_at DESC"
+        : "SELECT u.*, b.name as barangay_name 
+           FROM users u 
+           LEFT JOIN barangays b ON u.barangay = b.barangay_id 
+           WHERE u.account_status = 'pending' AND u.role = 'resident'
+           ORDER BY u.created_at DESC";
+    $params = $selected_barangay_id ? [$selected_barangay_id] : [];
+    $pending_users = $params ? $db->fetchAll($pendingUsersQuery, $params) : $db->fetchAll($pendingUsersQuery);
 
-    // Add these queries to fetch approved and rejected users
-    $approvedUsersQuery = "SELECT u.*, b.name as barangay_name 
-        FROM users u 
-        LEFT JOIN barangays b ON u.barangay = b.barangay_id 
-        WHERE u.account_status = 'active' AND u.role = 'resident'
-        ORDER BY u.created_at DESC";
-    $approved_users = $db->fetchAll($approvedUsersQuery);
+    // Add these queries to fetch approved and rejected users - filter by barangay if selected
+    $approvedUsersQuery = $selected_barangay_id
+        ? "SELECT u.*, b.name as barangay_name 
+           FROM users u 
+           LEFT JOIN barangays b ON u.barangay = b.barangay_id 
+           WHERE u.account_status = 'active' AND u.role = 'resident' AND u.barangay = ?
+           ORDER BY u.created_at DESC"
+        : "SELECT u.*, b.name as barangay_name 
+           FROM users u 
+           LEFT JOIN barangays b ON u.barangay = b.barangay_id 
+           WHERE u.account_status = 'active' AND u.role = 'resident'
+           ORDER BY u.created_at DESC";
+    $params = $selected_barangay_id ? [$selected_barangay_id] : [];
+    $approved_users = $params ? $db->fetchAll($approvedUsersQuery, $params) : $db->fetchAll($approvedUsersQuery);
 
-    $rejectedUsersQuery = "SELECT u.*, b.name as barangay_name 
-        FROM users u 
-        LEFT JOIN barangays b ON u.barangay = b.barangay_id 
-        WHERE u.account_status = 'deactivated' AND u.role = 'resident'
-        ORDER BY u.created_at DESC";
-    $rejected_users = $db->fetchAll($rejectedUsersQuery);
+    $rejectedUsersQuery = $selected_barangay_id
+        ? "SELECT u.*, b.name as barangay_name 
+           FROM users u 
+           LEFT JOIN barangays b ON u.barangay = b.barangay_id 
+           WHERE u.account_status = 'deactivated' AND u.role = 'resident' AND u.barangay = ?
+           ORDER BY u.created_at DESC"
+        : "SELECT u.*, b.name as barangay_name 
+           FROM users u 
+           LEFT JOIN barangays b ON u.barangay = b.barangay_id 
+           WHERE u.account_status = 'deactivated' AND u.role = 'resident'
+           ORDER BY u.created_at DESC";
+    $params = $selected_barangay_id ? [$selected_barangay_id] : [];
+    $rejected_users = $params ? $db->fetchAll($rejectedUsersQuery, $params) : $db->fetchAll($rejectedUsersQuery);
+    
+    // Fetch all barangays for the filter dropdown
+    $barangaysQuery = "
+        SELECT 
+            b.barangay_id, 
+            b.name,
+            COALESCE(b.captain_name, 'No Captain Assigned') as captain_name,
+            COUNT(DISTINCT u.user_id) as users_count
+        FROM barangays b
+        LEFT JOIN users u ON b.barangay_id = u.barangay AND u.role = 'resident'
+        GROUP BY b.barangay_id
+        ORDER BY b.name
+    ";
+    $barangays = $db->fetchAll($barangaysQuery);
     
     $db->closeConnection();
     
@@ -154,6 +186,8 @@ try {
     $pending_users = [];
     $approved_users = [];
     $rejected_users = [];
+    $barangays = [];
+    $current_barangay = null;
 }
 ?>
 
@@ -162,7 +196,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Participant Verification - 4P's Profiling System</title>
+    <title>Parent Leader Verification - 4P's Profiling System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link href="css/admin.css" rel="stylesheet">
@@ -191,10 +225,15 @@ try {
             </li>
             <li class="nav-item">
                 <a class="nav-link active" href="participant_verification.php">
-                    <i class="bi bi-person-check"></i> Participant Verification
+                    <i class="bi bi-person-check"></i> Parent Leader Verification
                     <?php if($pending_verifications > 0): ?>
                     <span class="badge bg-danger rounded-pill ms-auto"><?php echo $pending_verifications; ?></span>
                     <?php endif; ?>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="parent_leaders.php">
+                    <i class="bi bi-people"></i> List of Parent Leaders
                 </a>
             </li>
             <li class="nav-item">
@@ -234,13 +273,30 @@ try {
                 </a>
             </li>
         </ul>
+        
+        <?php if (!empty($barangays)): ?>
+        <div class="mt-4 p-3 bg-light rounded">
+            <h6 class="mb-2"><i class="bi bi-geo-alt me-2"></i>Select Barangay</h6>
+            <form action="" method="GET" id="barangayForm">
+                <select class="form-select form-select-sm" name="barangay_id" id="barangay_id" onchange="document.getElementById('barangayForm').submit();">
+                    <?php foreach($barangays as $barangay): ?>
+                    <option value="<?php echo $barangay['barangay_id']; ?>" 
+                        <?php echo (($selected_barangay_id == $barangay['barangay_id']) ? 'selected' : ''); ?>>
+                        <?php echo htmlspecialchars($barangay['name']); ?> 
+                        (<?php echo $barangay['users_count']; ?> Parent Leaders)
+                    </option>
+                    <?php endforeach; ?>
+                </select>
+            </form>
+        </div>
+        <?php endif; ?>
     </div>
     
     <!-- Main Content -->
     <div class="main-content">
         <!-- Page Title -->
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2><i class="bi bi-person-check me-2"></i>Participant Verification</h2>
+            <h2><i class="bi bi-person-check me-2"></i>Parent Leader Verification</h2>
             <div>
                 <span class="badge bg-danger"><?php echo $pending_verifications; ?> Pending</span>
             </div>
@@ -446,7 +502,7 @@ try {
                         <?php else: ?>
                         <div class="p-4 text-center">
                             <i class="bi bi-people text-primary fs-1"></i>
-                            <p class="mt-3">No approved participants found!</p>
+                            <p class="mt-3">No approved Parent Leader found!</p>
                         </div>
                         <?php endif; ?>
                     </div>
@@ -515,7 +571,7 @@ try {
                         <?php else: ?>
                         <div class="p-4 text-center">
                             <i class="bi bi-person-x text-danger fs-1"></i>
-                            <p class="mt-3">No rejected participants found!</p>
+                            <p class="mt-3">No rejected Parent Leader found!</p>
                         </div>
                         <?php endif; ?>
                     </div>

@@ -17,10 +17,16 @@ $profile_updated = false;
 try {
     $db = new Database();
 
-    // Get user information
+    // Get user information with barangay name
     $userId = $_SESSION['user_id'];
-    $userSql = "SELECT * FROM users WHERE user_id = ?";
+    $userSql = "SELECT u.*, b.name as barangay_name 
+                FROM users u 
+                LEFT JOIN barangays b ON u.barangay = b.barangay_id 
+                WHERE u.user_id = ?";
     $user = $db->fetchOne($userSql, [$userId]) ?? [];
+
+    // Get all barangays for dropdown if needed
+    $barangays = $db->fetchAll("SELECT barangay_id, name FROM barangays ORDER BY name");
 
     $defaultValues = [
         'firstname' => $_SESSION['firstname'] ?? 'User',
@@ -28,6 +34,7 @@ try {
         'email' => $_SESSION['email'] ?? '',
         'phone_number' => '',
         'barangay' => '',
+        'barangay_name' => '',
         'date_of_birth' => date('Y-m-d', strtotime('-30 years')),
         'gender' => 'male',
         'civil_status' => 'single',
@@ -898,7 +905,8 @@ $displayRole = ucfirst($user['role'] ?? $_SESSION['role'] ?? 'Resident');
                                 </div>
                                 <div class="mb-3">
                                     <label for="barangay" class="form-label">Barangay</label>
-                                    <textarea class="form-control" id="barangay" name="barangay" rows="2"><?php echo htmlspecialchars($user['barangay']); ?></textarea>
+                                    <input type="text" class="form-control" value="<?php echo htmlspecialchars($user['barangay_name'] ?? ''); ?>" readonly>
+                                    <input type="hidden" name="barangay" value="<?php echo htmlspecialchars($user['barangay'] ?? ''); ?>">
                                 </div>
                                 <div class="row">
                                     <div class="col-md-4 mb-3">
