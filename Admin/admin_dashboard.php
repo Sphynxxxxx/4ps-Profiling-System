@@ -199,7 +199,7 @@ try {
     }
     
     // Close database connection
-    $db->closeConnection();
+    //$db->closeConnection();
     
 } catch (Exception $e) {
     // Handle database errors
@@ -278,6 +278,11 @@ try {
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link" href="add_activities.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
+                    <i class="bi bi-arrow-repeat"></i> Activities
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link" href="calendar.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-calendar3"></i> Calendar
                     <?php if($upcoming_events > 0): ?>
@@ -317,7 +322,16 @@ try {
             <form action="" method="GET" id="barangayForm">
                 <select class="form-select form-select-sm" name="barangay_id" id="barangay_id" onchange="document.getElementById('barangayForm').submit();">
                     <?php 
-                    // Remove "All Barangays" option
+                    // Fetch total users for each barangay
+                    $userCountQuery = "SELECT barangay, COUNT(*) as total_users FROM users WHERE role = 'resident' AND account_status = 'active' GROUP BY barangay";
+                    $user_counts = $db->fetchAll($userCountQuery);
+                    
+                    // Create a lookup array for user counts
+                    $barangay_user_counts = [];
+                    foreach ($user_counts as $count) {
+                        $barangay_user_counts[$count['barangay']] = $count['total_users'];
+                    }
+
                     foreach($barangays as $barangay): 
                     ?>
                     <option value="<?php echo $barangay['barangay_id']; ?>" 
@@ -325,7 +339,15 @@ try {
                         // Select the barangay by default if it matches the default or selected barangay
                         echo (($selected_barangay_id == $barangay['barangay_id']) ? 'selected' : ''); 
                         ?>>
-                        <?php echo htmlspecialchars($barangay['name']); ?> (<?php echo $barangay['total_beneficiaries']; ?> Parent Leaders)
+                        <?php 
+                        echo htmlspecialchars($barangay['name']); 
+                        
+                        // Display total active users for the barangay
+                        $total_users = isset($barangay_user_counts[$barangay['barangay_id']]) 
+                            ? $barangay_user_counts[$barangay['barangay_id']] 
+                            : 0;
+                        echo " ($total_users Parent Leaders)"; 
+                        ?>
                     </option>
                     <?php endforeach; ?>
                 </select>
@@ -401,12 +423,12 @@ try {
             </div>
         </div>
         
-        <!-- Quick Access - Add barangay_id to URLs if specific barangay is selected -->
+        <!-- Quick Access -->
         <div class="quick-access mb-5">
             <div class="row">
                 <div class="col-md-3 col-6">
-                    <a href="add_beneficiary.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>" class="quick-btn">
-                        <i class="bi bi-person-plus"></i> Add Beneficiary
+                    <a href="add_activities.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>" class="quick-btn">
+                        <i class="bi bi-arrow-repeat"></i> Add Activities
                     </a>
                 </div>
                 <div class="col-md-3 col-6">
@@ -512,77 +534,190 @@ try {
                 </div>
             </div>
             
-            <!-- System Summary -->
+            <!-- Activities Overview -->
             <div class="col-lg-6 mb-4">
                 <div class="dashboard-card">
-                    <div class="card-header bg-primary text-white">
-                        <h3><i class="bi bi-info-circle me-2"></i>System Overview</h3>
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h3><i class="bi bi-calendar-event me-2"></i>Activities Overview
+                            <?php if($selected_barangay_id && $current_barangay): ?>
+                            for <?php echo htmlspecialchars($current_barangay['name']); ?>
+                            <?php endif; ?>
+                        </h3>
+                        <button type="button" class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#allActivitiesModal">
+                            <i class="bi bi-list-ul me-1"></i> View All
+                        </button>
                     </div>
                     <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <div class="card h-100">
-                                    <div class="card-body">
-                                        <h5 class="card-title"><i class="bi bi-calendar-check me-2"></i>Program Compliance</h5>
-                                        <ul class="list-group list-group-flush">
-                                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                Health Check Compliance
-                                                <span class="badge bg-<?php echo $health_compliance >= 90 ? 'success' : ($health_compliance >= 75 ? 'primary' : ($health_compliance >= 60 ? 'warning' : 'danger')); ?> rounded-pill"><?php echo $health_compliance; ?>%</span>
-                                            </li>
-                                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                Education Attendance
-                                                <span class="badge bg-<?php echo $education_compliance >= 90 ? 'success' : ($education_compliance >= 75 ? 'primary' : ($education_compliance >= 60 ? 'warning' : 'danger')); ?> rounded-pill"><?php echo $education_compliance; ?>%</span>
-                                            </li>
-                                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                FDS Attendance
-                                                <span class="badge bg-<?php echo $fds_compliance >= 90 ? 'success' : ($fds_compliance >= 75 ? 'primary' : ($fds_compliance >= 60 ? 'warning' : 'danger')); ?> rounded-pill"><?php echo $fds_compliance; ?>%</span>
-                                            </li>
-                                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                Overall Compliance
-                                                <span class="badge bg-<?php echo $overall_compliance >= 90 ? 'success' : ($overall_compliance >= 75 ? 'primary' : ($overall_compliance >= 60 ? 'warning' : 'danger')); ?> rounded-pill"><?php echo $overall_compliance; ?>%</span>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
+                        <?php 
+                        // Fetch limited activities for the card (5 most recent)
+                        try {
+                            $db = new Database();
                             
-                            <div class="col-12 mt-3">
-                                <div class="card">
-                                    <div class="card-body">
-                                        <h5 class="card-title"><i class="bi bi-graph-up me-2"></i>System Status</h5>
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <ul class="list-group list-group-flush">
-                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                        Database Size
-                                                        <span class="badge bg-info rounded-pill"><?php echo $database_size; ?> GB</span>
-                                                    </li>
-                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                        Last Backup
-                                                        <span class="badge bg-success rounded-pill"><?php echo $last_backup; ?></span>
-                                                    </li>
-                                                </ul>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <ul class="list-group list-group-flush">
-                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                        System Version
-                                                        <span class="badge bg-primary rounded-pill"><?php echo $system_version; ?></span>
-                                                    </li>
-                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                        Server Status
-                                                        <span class="badge bg-success rounded-pill">Online</span>
-                                                    </li>
-                                                </ul>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                            $recentActivitiesQuery = $selected_barangay_id
+                                ? "SELECT a.activity_id, a.title, a.activity_type, a.start_date, a.end_date 
+                                FROM activities a
+                                WHERE a.barangay_id = ? 
+                                ORDER BY a.start_date DESC 
+                                LIMIT 5"
+                                : "SELECT a.activity_id, a.title, a.activity_type, a.start_date, a.end_date 
+                                FROM activities a
+                                ORDER BY a.start_date DESC 
+                                LIMIT 5";
+                            
+                            $params = $selected_barangay_id ? [$selected_barangay_id] : [];
+                            $recent_activities = $db->fetchAll($recentActivitiesQuery, $params);
+                        } catch (Exception $e) {
+                            $recent_activities = [];
+                        }
+                        ?>
+                        
+                        <?php if(empty($recent_activities)): ?>
+                            <div class="text-center py-4">
+                                <i class="bi bi-calendar-x fs-1 text-muted"></i>
+                                <p class="mt-2 text-muted">
+                                    <?php echo $selected_barangay_id 
+                                        ? "No activities found for this barangay." 
+                                        : "No recent activities found."; 
+                                    ?>
+                                </p>
                             </div>
-                        </div>
-                                                    </div>
+                        <?php else: ?>
+                            <div class="list-group">
+                                <?php foreach($recent_activities as $activity): ?>
+                                    <a href="tabs/view_activity.php?id=<?php echo $activity['activity_id']; ?><?php echo $selected_barangay_id ? '&barangay_id='.$selected_barangay_id : ''; ?>" 
+                                    class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="my-0"><?php echo htmlspecialchars($activity['title']); ?></h6>
+                                            <small class="text-muted">
+                                                <?php 
+                                                $activity_types = [
+                                                    'health_check' => 'Health Check',
+                                                    'education' => 'Education',
+                                                    'family_development_session' => 'Family Development Session',
+                                                    'community_meeting' => 'Community Meeting',
+                                                    'other' => 'Other Activity'
+                                                ];
+                                                echo $activity_types[$activity['activity_type']] ?? $activity['activity_type'];
+                                                ?>
+                                            </small>
+                                        </div>
+                                        <span class="badge bg-primary rounded-pill">
+                                            <?php 
+                                            if ($activity['start_date'] && $activity['end_date'] && $activity['start_date'] != $activity['end_date']) {
+                                                echo date('M d', strtotime($activity['start_date'])) . ' - ' . 
+                                                    date('M d', strtotime($activity['end_date']));
+                                            } elseif ($activity['start_date']) {
+                                                echo date('M d', strtotime($activity['start_date']));
+                                            } else {
+                                                echo 'No Date';
+                                            }
+                                            ?>
+                                        </span>
+                                    </a>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
                     <div class="card-footer">
-                        <a href="system_reports.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>" class="btn btn-primary">View Detailed System Reports</a>
+                        <a href="add_activities.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>" 
+                        class="btn btn-primary w-100">
+                            <i class="bi bi-plus-circle me-2"></i>Create New Activity
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- All Activities Modal -->
+            <div class="modal fade" id="allActivitiesModal" tabindex="-1" aria-labelledby="allActivitiesModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title" id="allActivitiesModalLabel">
+                                <i class="bi bi-calendar-event me-2"></i>All Activities
+                                <?php if($selected_barangay_id && $current_barangay): ?>
+                                - Barangay <?php echo htmlspecialchars($current_barangay['name']); ?>
+                                <?php endif; ?>
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <?php 
+                            // Fetch all activities for the modal
+                            try {
+                                $allActivitiesQuery = $selected_barangay_id
+                                    ? "SELECT a.activity_id, a.title, a.activity_type, a.start_date, a.end_date, a.description,
+                                            b.name as barangay_name
+                                    FROM activities a
+                                    LEFT JOIN barangays b ON a.barangay_id = b.barangay_id
+                                    WHERE a.barangay_id = ? 
+                                    ORDER BY a.start_date DESC"
+                                    : "SELECT a.activity_id, a.title, a.activity_type, a.start_date, a.end_date, a.description,
+                                            b.name as barangay_name
+                                    FROM activities a
+                                    LEFT JOIN barangays b ON a.barangay_id = b.barangay_id
+                                    ORDER BY a.start_date DESC";
+                                
+                                $params = $selected_barangay_id ? [$selected_barangay_id] : [];
+                                $all_activities = $db->fetchAll($allActivitiesQuery, $params);
+                            } catch (Exception $e) {
+                                $all_activities = [];
+                            }
+                            ?>
+                            
+                            <?php if(empty($all_activities)): ?>
+                                <div class="text-center py-4">
+                                    <i class="bi bi-calendar-x fs-1 text-muted"></i>
+                                    <p class="mt-2 text-muted">
+                                        <?php echo $selected_barangay_id 
+                                            ? "No activities found for this barangay." 
+                                            : "No activities found."; 
+                                        ?>
+                                    </p>
+                                </div>
+                            <?php else: ?>
+                                <div class="list-group">
+                                    <?php foreach($all_activities as $activity): ?>
+                                        <div class="list-group-item">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <div>
+                                                    <h6 class="mb-1"><?php echo htmlspecialchars($activity['title']); ?></h6>
+                                                    <small class="text-muted">
+                                                        <?php 
+                                                        echo $activity_types[$activity['activity_type']] ?? $activity['activity_type'];
+                                                        if (!$selected_barangay_id && !empty($activity['barangay_name'])) {
+                                                            echo ' • ' . htmlspecialchars($activity['barangay_name']);
+                                                        }
+                                                        ?>
+                                                    </small>
+                                                </div>
+                                                <span class="badge bg-primary rounded-pill">
+                                                    <?php 
+                                                    if ($activity['start_date'] && $activity['end_date'] && $activity['start_date'] != $activity['end_date']) {
+                                                        echo date('M d, Y', strtotime($activity['start_date'])) . ' - ' . 
+                                                            date('M d, Y', strtotime($activity['end_date']));
+                                                    } elseif ($activity['start_date']) {
+                                                        echo date('M d, Y', strtotime($activity['start_date']));
+                                                    } else {
+                                                        echo 'No Date';
+                                                    }
+                                                    ?>
+                                                </span>
+                                            </div>
+                                            <?php if(!empty($activity['description'])): ?>
+                                                <p class="mb-1"><?php echo nl2br(htmlspecialchars($activity['description'])); ?></p>
+                                            <?php endif; ?>
+                                            <a href="tabs/view_activity.php?id=<?php echo $activity['activity_id']; ?><?php echo $selected_barangay_id ? '&barangay_id='.$selected_barangay_id : ''; ?>" 
+                                            class="btn btn-sm btn-outline-primary mt-2">
+                                                <i class="bi bi-eye me-1"></i> View Details
+                                            </a>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
                     </div>
                 </div>
             </div>

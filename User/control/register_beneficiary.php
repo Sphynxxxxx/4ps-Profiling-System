@@ -62,9 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = "Year level is required";
     }
     
-    if (empty($phoneNumber)) {
-        $errors[] = "Phone number is required";
-    } elseif (!preg_match('/^[0-9]{11}$/', $phoneNumber)) {
+    if (!empty($phoneNumber) && !preg_match('/^[0-9]{11}$/', $phoneNumber)) {
         $errors[] = "Phone number must be 11 digits";
     }
     
@@ -349,12 +347,12 @@ try {
                                         </div>
                                         
                                         <div class="col-md-6">
-                                            <label for="phoneNumber" class="form-label required-field">Phone Number</label>
+                                            <label for="phoneNumber" class="form-label">Phone Number (Optional)</label>
                                             <div class="input-group">
                                                 <span class="input-group-text">+63</span>
-                                                <input type="text" class="form-control" id="phoneNumber" name="phoneNumber" placeholder="9XXXXXXXXX" value="<?php echo htmlspecialchars($phoneNumber ?? ''); ?>" required maxlength="11">
+                                                <input type="text" class="form-control" id="phoneNumber" name="phoneNumber" placeholder="9XXXXXXXXX" value="<?php echo htmlspecialchars($phoneNumber ?? ''); ?>" maxlength="11">
                                             </div>
-                                            <div class="form-text">Enter 11-digit phone number</div>
+                                            <div class="form-text">Enter 11-digit phone number if available</div>
                                         </div>
                                         
                                         <div class="col-md-6">

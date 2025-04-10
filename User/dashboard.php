@@ -27,21 +27,77 @@ try {
     }
     
     // Get activity counts
-    $completedSql = "SELECT COUNT(*) as count FROM activities WHERE user_id = ? AND status = 'completed'";
+    $completedSql = "SELECT COUNT(*) as count FROM activities WHERE created_by = ? AND end_date < CURDATE()";
     $completedResult = $db->fetchOne($completedSql, [$userId]);
     $completedCount = $completedResult ? $completedResult['count'] : 0;
+
+    $activesSql = "SELECT COUNT(*) as count FROM activities WHERE created_by = ? AND start_date <= CURDATE() AND end_date >= CURDATE()";
+    $activesResult = $db->fetchOne($activesSql, [$userId]);
+    $activesCount = $activesResult ? $activesResult['count'] : 0;
+
+    $upcomingSql = "SELECT COUNT(*) as count FROM activities WHERE created_by = ? AND start_date > CURDATE()";
+    $upcomingResult = $db->fetchOne($upcomingSql, [$userId]);
+    $upcomingCount = $upcomingResult ? $upcomingResult['count'] : 0;
     
-    $missedSql = "SELECT COUNT(*) as count FROM activities WHERE user_id = ? AND status = 'missed'";
-    $missedResult = $db->fetchOne($missedSql, [$userId]);
-    $missedCount = $missedResult ? $missedResult['count'] : 0;
-    
-    $newActivitiesSql = "SELECT COUNT(*) as count FROM activities WHERE user_id = ? AND status = 'pending' AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
-    $newActivitiesResult = $db->fetchOne($newActivitiesSql, [$userId]);
-    $newActivitiesCount = $newActivitiesResult ? $newActivitiesResult['count'] : 0;
-    
-    // Get recent activities
-    $recentActivitiesSql = "SELECT * FROM activities WHERE user_id = ? AND status = 'pending' ORDER BY due_date ASC LIMIT 3";
-    $recentActivities = $db->fetchAll($recentActivitiesSql, [$userId]);
+    // Get current user's barangay
+    $userBarangayId = null;
+    if (isset($user['barangay'])) {
+        // If barangay is stored as ID
+        $userBarangayId = intval($user['barangay']);
+    } else {
+        // Attempt to get barangay ID from beneficiaries table if user is a beneficiary
+        try {
+            $beneficiaryQuery = "SELECT barangay_id FROM beneficiaries WHERE user_id = ?";
+            $beneficiaryResult = $db->fetchOne($beneficiaryQuery, [$userId]);
+            if ($beneficiaryResult) {
+                $userBarangayId = $beneficiaryResult['barangay_id'];
+            }
+        } catch (Exception $e) {
+            error_log("Error fetching user's barangay: " . $e->getMessage());
+        }
+    }
+
+    // Override with URL parameter if present (for filtering)
+    $selected_barangay_id = isset($_GET['barangay_id']) ? intval($_GET['barangay_id']) : $userBarangayId;
+
+    // Fetch available barangays for the dropdown
+    $barangays = [];
+    $query = "SELECT barangay_id, name FROM barangays ORDER BY name";
+    $barangays = $db->fetchAll($query);
+
+    // Get all activities with proper barangay filtering
+    $recentActivitiesSql = "SELECT a.*, b.name as barangay_name, u.firstname, u.lastname 
+            FROM activities a 
+            LEFT JOIN barangays b ON a.barangay_id = b.barangay_id
+            LEFT JOIN users u ON a.created_by = u.user_id";
+
+    // If a barangay is selected or user has a barangay, filter activities by it
+    if ($selected_barangay_id) {
+        $recentActivitiesSql .= " WHERE a.barangay_id = ? ORDER BY a.created_at DESC";
+        $recentActivities = $db->fetchAll($recentActivitiesSql, [$selected_barangay_id]);
+    } else {
+        // Otherwise, show all activities
+        $recentActivitiesSql .= " ORDER BY a.created_at DESC";
+        $recentActivities = $db->fetchAll($recentActivitiesSql);
+    }
+
+    // Helper function to format activity type for display
+    function formatActivityType($type) {
+        switch ($type) {
+            case 'health_check':
+                return ['name' => 'Health Check', 'class' => 'success'];
+            case 'education':
+                return ['name' => 'Education', 'class' => 'info'];
+            case 'family_development_session':
+                return ['name' => 'Family Development Session', 'class' => 'warning'];
+            case 'community_meeting':
+                return ['name' => 'Community Meeting', 'class' => 'primary'];
+            case 'other':
+                return ['name' => 'Other', 'class' => 'secondary'];
+            default:
+                return ['name' => ucfirst(str_replace('_', ' ', $type)), 'class' => 'secondary'];
+        }
+    }
     
     // Get recent updates
     $updatesSql = "SELECT * FROM updates ORDER BY created_at DESC LIMIT 3";
@@ -66,11 +122,14 @@ try {
     ];
     
     $completedCount = 0;
-    $missedCount = 0;
-    $newActivitiesCount = 0;
+    $activesCount = 0;     
+    $upcomingCount = 0;    
     $recentActivities = [];
     $updates = [];
     $events = [];
+    $userBarangayId = null;
+    $selected_barangay_id = null;
+    $barangays = [];
     
     // Close database connection if it exists
     if (isset($db)) {
@@ -81,50 +140,46 @@ try {
 // Determine display name and role for the sidebar
 $displayName = $user['firstname'] ?? $_SESSION['firstname'] ?? 'User';
 $displayRole = strtoupper($user['role'] ?? $_SESSION['role'] ?? 'BENEFICIARY');
-//$profileImage = !empty($user['profile_image']) ? $user['profile_image'] : 
-                //(!empty($user['valid_id_path']) ? $user['valid_id_path'] : 'assets/images/profile-placeholder.png');
 
-// Total beneficiaries (for admin dashboard)
 $totalBeneficiaries = 0;
 $activePrograms = 0;
 $complianceRate = 0;
 $pendingVerifications = 0;
 
-if (isset($user['role']) && $user['role'] == 'admin') {
-    try {
-        $db = new Database();
-        
-        // Get total beneficiaries
-        $totalSql = "SELECT COUNT(*) as count FROM beneficiaries";
-        $totalResult = $db->fetchOne($totalSql);
-        $totalBeneficiaries = $totalResult ? $totalResult['count'] : 0;
-        
-        // Get active programs
-        $programsSql = "SELECT COUNT(*) as count FROM programs WHERE status = 'active'";
-        $programsResult = $db->fetchOne($programsSql);
-        $activePrograms = $programsResult ? $programsResult['count'] : 0;
-        
-        // Get compliance rate
-        $complianceSql = "SELECT 
-                            (COUNT(CASE WHEN status = 'completed' THEN 1 END) * 100.0 / COUNT(*)) as rate 
-                          FROM activities";
-        $complianceResult = $db->fetchOne($complianceSql);
-        $complianceRate = $complianceResult ? round($complianceResult['rate']) : 0;
-        
-        // Get pending verifications
-        $verificationsSql = "SELECT COUNT(*) as count FROM verifications WHERE status = 'pending'";
-        $verificationsResult = $db->fetchOne($verificationsSql);
-        $pendingVerifications = $verificationsResult ? $verificationsResult['count'] : 0;
-        
+try {
+    $db = new Database();
+    
+    // Updated query to count ALL beneficiaries from the beneficiaries table
+    $totalSql = "SELECT COUNT(*) as count FROM beneficiaries";
+    $totalResult = $db->fetchOne($totalSql);
+    $totalBeneficiaries = $totalResult ? $totalResult['count'] : 0;
+    
+    // The rest of your queries remain the same
+    $programsSql = "SELECT COUNT(*) as count FROM programs WHERE status = 'active'";
+    $programsResult = $db->fetchOne($programsSql);
+    $activePrograms = $programsResult ? $programsResult['count'] : 0;
+    
+    // Get compliance rate
+    $complianceSql = "SELECT 
+                    (COUNT(CASE WHEN end_date < CURDATE() THEN 1 END) * 100.0 / COUNT(*)) as rate 
+                    FROM activities";
+    $complianceResult = $db->fetchOne($complianceSql);
+    $complianceRate = $complianceResult ? round($complianceResult['rate']) : 0;
+    
+    // Get pending verifications
+    $verificationsSql = "SELECT COUNT(*) as count FROM users WHERE account_status = 'pending'";
+    $verificationsResult = $db->fetchOne($verificationsSql);
+    $pendingVerifications = $verificationsResult ? $verificationsResult['count'] : 0;
+    
+    $db->closeConnection();
+} catch (Exception $e) {
+    error_log("Dashboard Error: " . $e->getMessage());
+    
+    if (isset($db)) {
         $db->closeConnection();
-    } catch (Exception $e) {
-        error_log("Admin Dashboard Error: " . $e->getMessage());
-        
-        if (isset($db)) {
-            $db->closeConnection();
-        }
     }
 }
+
 ?>
 
 <!DOCTYPE html>
@@ -181,13 +236,6 @@ if (isset($user['role']) && $user['role'] == 'admin') {
         <div class="row g-0">
             <!-- Sidebar -->
             <div class="sidebar" id="sidebar">
-                <!-- User Profile Section 
-                <div class="profile-section">
-                    <img src="image_fetch.php" alt="Profile Image" class="profile-image">
-                    <h5 class="user-name"><?php echo $displayName; ?></h5>
-                    <span class="user-type"><?php echo $displayRole; ?></span>
-                </div>-->
-                
                 <!-- Navigation Menu -->
                 <ul class="nav flex-column">
                     <li class="nav-item">
@@ -198,6 +246,11 @@ if (isset($user['role']) && $user['role'] == 'admin') {
                     <li class="nav-item">
                         <a class="nav-link" href="profile.php">
                             <i class="bi bi-person"></i> Profile
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="activities.php">
+                            <i class="bi bi-calendar2-check"></i> Activities
                         </a>
                     </li>
                     <li class="nav-item">
@@ -236,14 +289,6 @@ if (isset($user['role']) && $user['role'] == 'admin') {
                         <h1 class="h3 mb-0 text-gray-800">
                             <i class="bi bi-grid-1x2 me-2"></i> Dashboard
                         </h1>
-                        <div>
-                            <button class="btn btn-outline-secondary btn-sm">
-                                <i class="bi bi-download me-1"></i> Export
-                            </button>
-                            <button class="btn btn-primary btn-sm ms-2">
-                                <i class="bi bi-plus-lg me-1"></i> New Record
-                            </button>
-                        </div>
                     </div>
 
                     <!-- Statistics Cards Row -->
@@ -312,110 +357,132 @@ if (isset($user['role']) && $user['role'] == 'admin') {
                                 </div>
                             </div>
                         </div>
-
-                        <div class="col-md-3 mb-4">
-                            <div class="card dashboard-card bg-white h-100">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="text-muted mb-1">Pending Verifications</h6>
-                                            <h2 class="mb-0 fw-bold"><?php echo $pendingVerifications; ?></h2>
-                                        </div>
-                                        <div class="rounded-circle bg-warning bg-opacity-10 p-3">
-                                            <i class="bi bi-hourglass-split text-warning fs-3"></i>
-                                        </div>
-                                    </div>
-                                    <div class="mt-3">
-                                        <!--<span class="badge bg-danger">-18% <i class="bi bi-arrow-down"></i></span>
-                                        <span class="text-muted ms-2">Reduced backlog</span>-->
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
 
-                    <!-- Activities Sections -->
                     <div class="row mb-4">
-                        <!-- New Activities Section -->
-                        <div class="col-md-6 mb-4">
+                        <div class="col-12">
                             <div class="card dashboard-card">
                                 <div class="card-header d-flex justify-content-between align-items-center py-3">
-                                    <h5 class="mb-0">New Added Activities</h5>
-                                    <span class="badge bg-primary rounded-pill"><?php echo $newActivitiesCount; ?></span>
+                                    <h5 class="mb-0">Recent Activities</h5>
+                                    <a href="activities.php" class="btn btn-sm btn-outline-primary">View All Activities</a>
                                 </div>
-                                <div class="card-body">
-                                    <div class="list-group list-group-flush">
-                                        <?php if (empty($recentActivities)): ?>
-                                        <div class="text-center text-muted py-4">
-                                            <i class="bi bi-calendar-check fs-1"></i>
-                                            <p class="mt-2">No new activities at the moment.</p>
-                                        </div>
-                                        <?php else: ?>
-                                            <?php foreach ($recentActivities as $activity): ?>
-                                            <div class="list-group-item border-0 px-0 d-flex justify-content-between align-items-center">
-                                                <div>
-                                                    <h6 class="mb-1"><?php echo htmlspecialchars($activity['title']); ?></h6>
-                                                    <p class="text-muted mb-0 small">
-                                                        <?php 
-                                                        $due_date = new DateTime($activity['due_date']);
-                                                        $now = new DateTime();
-                                                        $diff = $now->diff($due_date);
-                                                        echo "Due in " . $diff->days . " days";
-                                                        ?>
-                                                    </p>
-                                                </div>
-                                                <span class="badge bg-<?php 
-                                                    $category = strtolower($activity['category']);
-                                                    if ($category == 'education') echo 'info';
-                                                    elseif ($category == 'health') echo 'success';
-                                                    elseif ($category == 'financial') echo 'warning';
-                                                    else echo 'secondary';
-                                                ?> rounded-pill"><?php echo htmlspecialchars($activity['category']); ?></span>
-                                            </div>
-                                            <?php endforeach; ?>
-                                        <?php endif; ?>
-                                    </div>
-                                    <div class="text-center mt-3">
-                                        <a href="activities.php" class="btn btn-outline-primary">
-                                            Click to View All
-                                            <i class="bi bi-arrow-right ms-1"></i>
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Activity Status Section -->
-                        <div class="col-md-6 mb-4">
-                            <div class="card dashboard-card">
-                                <div class="card-header py-3">
-                                    <h5 class="mb-0">Activity Status</h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-6 text-center mb-4">
-                                            <h5 class="text-muted mb-3">Completed Activities</h5>
-                                            <div class="d-flex align-items-center justify-content-center mb-3">
-                                                <div style="width: 120px; height: 120px;" class="rounded-circle d-flex align-items-center justify-content-center border border-success border-3">
-                                                    <h1 class="display-4 mb-0 text-success"><?php echo $completedCount; ?></h1>
-                                                </div>
-                                            </div>
-                                            <button class="btn status-button completed-btn">
-                                                <i class="bi bi-check-circle me-1"></i> Completed
-                                            </button>
-                                        </div>
-                                        
-                                        <div class="col-md-6 text-center mb-4">
-                                            <h5 class="text-muted mb-3">Missed Activities</h5>
-                                            <div class="d-flex align-items-center justify-content-center mb-3">
-                                                <div style="width: 120px; height: 120px;" class="rounded-circle d-flex align-items-center justify-content-center border border-danger border-3">
-                                                    <h1 class="display-4 mb-0 text-danger"><?php echo $missedCount; ?></h1>
-                                                </div>
-                                            </div>
-                                            <button class="btn status-button missed-btn">
-                                                <i class="bi bi-x-circle me-1"></i> Missed
-                                            </button>
-                                        </div>
+                                <div class="card-body p-0">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover align-middle mb-0">
+                                            <thead class="bg-light">
+                                                <tr>
+                                                    <th class="ps-4">Activity</th>
+                                                    <th>Type</th>
+                                                    <th>Barangay</th>
+                                                    <th>Date</th>
+                                                    <th>Status</th>
+                                                    <th class="text-end pe-4">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <?php if (empty($recentActivities)): ?>
+                                                <tr>
+                                                    <td colspan="6" class="text-center py-4 text-muted">
+                                                        <i class="bi bi-calendar2-x fs-1 d-block mb-2"></i>
+                                                        No activities available for your barangay.
+                                                    </td>
+                                                </tr>
+                                                <?php else: ?>
+                                                    <?php 
+                                                    // Display only the 5 most recent activities
+                                                    $displayLimit = 5;
+                                                    $activitiesToShow = array_slice($recentActivities, 0, $displayLimit);
+                                                    
+                                                    foreach ($activitiesToShow as $activity): 
+                                                        $activityType = formatActivityType($activity['activity_type']);
+                                                        
+                                                        // Determine activity status
+                                                        $today = date('Y-m-d');
+                                                        $startDate = date('Y-m-d', strtotime($activity['start_date']));
+                                                        $endDate = date('Y-m-d', strtotime($activity['end_date']));
+                                                        
+                                                        if ($today < $startDate) {
+                                                            $status = ['label' => 'Upcoming', 'class' => 'info'];
+                                                        } elseif ($today > $endDate) {
+                                                            $status = ['label' => 'Completed', 'class' => 'secondary'];
+                                                        } else {
+                                                            $status = ['label' => 'Active', 'class' => 'success'];
+                                                        }
+                                                    ?>
+                                                    <tr>
+                                                        <td class="ps-4">
+                                                            <div class="d-flex align-items-center">
+                                                                <div class="activity-icon-sm bg-<?php echo $activityType['class']; ?> bg-opacity-10 text-<?php echo $activityType['class']; ?> rounded me-3 p-2">
+                                                                    <i class="bi bi-<?php 
+                                                                        switch ($activity['activity_type']) {
+                                                                            case 'health_check': echo 'heart-pulse'; break;
+                                                                            case 'education': echo 'book'; break;
+                                                                            case 'family_development_session': echo 'people'; break;
+                                                                            case 'community_meeting': echo 'chat-square-text'; break;
+                                                                            default: echo 'grid'; break;
+                                                                        }
+                                                                    ?>"></i>
+                                                                </div>
+                                                                <div>
+                                                                    <h6 class="mb-0"><?php echo htmlspecialchars($activity['title']); ?></h6>
+                                                                    <small class="text-muted">
+                                                                        <?php 
+                                                                        $desc = htmlspecialchars($activity['description'] ?? '');
+                                                                        echo (strlen($desc) > 60) ? substr($desc, 0, 60) . '...' : $desc;
+                                                                        ?>
+                                                                    </small>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <span class="badge bg-<?php echo $activityType['class']; ?> bg-opacity-10 text-<?php echo $activityType['class']; ?> px-3 py-2">
+                                                                <?php echo $activityType['name']; ?>
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <span class="text-secondary">
+                                                                <?php echo !empty($activity['barangay_name']) ? htmlspecialchars($activity['barangay_name']) : 'All Barangays'; ?>
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <div class="d-flex flex-column">
+                                                                <span class="small text-nowrap">
+                                                                    <i class="bi bi-calendar3 me-1"></i>
+                                                                    <?php echo date('M d, Y', strtotime($activity['start_date'])); ?>
+                                                                </span>
+                                                                <?php if ($activity['start_date'] != $activity['end_date']): ?>
+                                                                <span class="small text-muted text-nowrap">
+                                                                    <i class="bi bi-arrow-right me-1"></i>
+                                                                    <?php echo date('M d, Y', strtotime($activity['end_date'])); ?>
+                                                                </span>
+                                                                <?php endif; ?>
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <span class="badge bg-<?php echo $status['class']; ?> bg-opacity-10 text-<?php echo $status['class']; ?> px-3 py-2">
+                                                                <?php echo $status['label']; ?>
+                                                            </span>
+                                                        </td>
+                                                        <td class="text-end pe-4">
+                                                            <a href="view_activity.php?id=<?php echo $activity['activity_id']; ?>" class="btn btn-sm btn-outline-primary">
+                                                                Details
+                                                            </a>
+                                                        </td>
+                                                    </tr>
+                                                    <?php endforeach; ?>
+                                                    
+                                                    <?php if (count($recentActivities) > $displayLimit): ?>
+                                                    <tr>
+                                                        <td colspan="6" class="text-center py-3 bg-light">
+                                                            <a href="activities.php" class="text-decoration-none">
+                                                                View <?php echo count($recentActivities) - $displayLimit; ?> more activities <i class="bi bi-arrow-right ms-1"></i>
+                                                            </a>
+                                                        </td>
+                                                    </tr>
+                                                    <?php endif; ?>
+                                                <?php endif; ?>
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
                             </div>

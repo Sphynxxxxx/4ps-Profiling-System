@@ -4,6 +4,10 @@ class Database {
     private $inTransaction = false;
 
     public function __construct() {
+        $this->connect();
+    }
+
+    private function connect() {
         $this->conn = new mysqli(DB_HOST, DB_USERNAME, DB_PASSWORD, DB_NAME);
         
         if ($this->conn->connect_error) {
@@ -12,48 +16,87 @@ class Database {
     }
 
     public function fetchOne($sql, $params = []) {
-        $stmt = $this->prepareAndBind($sql, $params);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $row = $result->fetch_assoc();
-        $stmt->close();
-        return $row;
+        try {
+            // Ensure connection is alive
+            $this->ensureConnection();
+            
+            $stmt = $this->prepareAndBind($sql, $params);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $row = $result->fetch_assoc();
+            $stmt->close();
+            return $row;
+        } catch (Exception $e) {
+            error_log("Fetch One Error: " . $e->getMessage());
+            throw $e;
+        }
     }
 
     public function fetchAll($sql, $params = []) {
-        $stmt = $this->prepareAndBind($sql, $params);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $rows = [];
-        while ($row = $result->fetch_assoc()) {
-            $rows[] = $row;
+        try {
+            // Ensure connection is alive
+            $this->ensureConnection();
+            
+            $stmt = $this->prepareAndBind($sql, $params);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $rows = [];
+            while ($row = $result->fetch_assoc()) {
+                $rows[] = $row;
+            }
+            $stmt->close();
+            return $rows;
+        } catch (Exception $e) {
+            error_log("Fetch All Error: " . $e->getMessage());
+            throw $e;
         }
-        $stmt->close();
-        return $rows;
-    }
-
-    public function insert($sql, $params = []) {
-        $stmt = $this->prepareAndBind($sql, $params);
-        $success = $stmt->execute();
-        
-        if (!$success) {
-            throw new Exception("Insert failed: " . $stmt->error);
-        }
-        
-        $id = $this->conn->insert_id;
-        $stmt->close();
-        return $id;
     }
 
     /**
-     * Execute a SQL statement (for UPDATE, DELETE, etc.)
-     * 
-     * @param string $sql The SQL statement to execute
-     * @param array $params Parameters to bind to the query
-     * @return bool True on success, false on failure
+     * Ensure the database connection is active
      */
+    private function ensureConnection() {
+        // Check if connection is closed or invalid
+        if (!$this->conn || $this->conn->connect_error) {
+            $this->connect();
+        }
+        
+        // Ping the server to check connection
+        if (!$this->conn->ping()) {
+            $this->connect();
+        }
+    }
+
+    public function insertAndGetId($sql, $params = []) {
+        try {
+            // Ensure connection is alive
+            $this->ensureConnection();
+            
+            $stmt = $this->prepareAndBind($sql, $params);
+            $success = $stmt->execute();
+            
+            if (!$success) {
+                throw new Exception("Insert failed: " . $stmt->error);
+            }
+            
+            $id = $this->conn->insert_id;
+            $stmt->close();
+            return $id;
+        } catch (Exception $e) {
+            error_log("Insert Error: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    public function insert($sql, $params = []) {
+        return $this->insertAndGetId($sql, $params);
+    }
+
     public function execute($sql, $params = []) {
         try {
+            // Ensure connection is alive
+            $this->ensureConnection();
+            
             $stmt = $this->prepareAndBind($sql, $params);
             $success = $stmt->execute();
             
@@ -65,64 +108,67 @@ class Database {
             $stmt->close();
             return $affectedRows;
         } catch (Exception $e) {
-            error_log("Database execute error: " . $e->getMessage());
+            error_log("Execute Error: " . $e->getMessage());
             throw $e;
         }
     }
 
-    /**
-     * Generic query method for any SQL statement with result
-     * 
-     * @param string $sql The SQL statement to execute
-     * @param array $params Parameters to bind to the query
-     * @return mysqli_result Result set
-     */
     public function query($sql, $params = []) {
-        $stmt = $this->prepareAndBind($sql, $params);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $stmt->close();
-        return $result;
+        try {
+            // Ensure connection is alive
+            $this->ensureConnection();
+            
+            $stmt = $this->prepareAndBind($sql, $params);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $stmt->close();
+            return $result;
+        } catch (Exception $e) {
+            error_log("Query Error: " . $e->getMessage());
+            throw $e;
+        }
     }
 
-    /**
-     * Get the database connection object
-     * 
-     * @return mysqli The database connection object
-     */
     public function getConnection() {
+        $this->ensureConnection();
         return $this->conn;
     }
 
     private function prepareAndBind($sql, $params) {
-        $stmt = $this->conn->prepare($sql);
-        
-        if (!$stmt) {
-            throw new Exception("Prepare failed: " . $this->conn->error . " SQL: " . $sql);
-        }
-        
-        if (!empty($params)) {
-            $types = '';
-            foreach ($params as $param) {
-                if (is_int($param)) {
-                    $types .= 'i';
-                } elseif (is_float($param)) {
-                    $types .= 'd';
-                } elseif (is_string($param)) {
-                    $types .= 's';
-                } else {
-                    $types .= 'b';
-                }
+        try {
+            $stmt = $this->conn->prepare($sql);
+            
+            if (!$stmt) {
+                throw new Exception("Prepare failed: " . $this->conn->error . " SQL: " . $sql);
             }
             
-            $stmt->bind_param($types, ...$params);
+            if (!empty($params)) {
+                $types = '';
+                foreach ($params as $param) {
+                    if (is_int($param)) {
+                        $types .= 'i';
+                    } elseif (is_float($param)) {
+                        $types .= 'd';
+                    } elseif (is_string($param)) {
+                        $types .= 's';
+                    } else {
+                        $types .= 'b';
+                    }
+                }
+                
+                $stmt->bind_param($types, ...$params);
+            }
+            
+            return $stmt;
+        } catch (Exception $e) {
+            error_log("Prepare and Bind Error: " . $e->getMessage());
+            throw $e;
         }
-        
-        return $stmt;
     }
 
     public function beginTransaction() {
         if (!$this->inTransaction) {
+            $this->ensureConnection();
             $this->conn->begin_transaction();
             $this->inTransaction = true;
         }
@@ -147,21 +193,30 @@ class Database {
     }
 
     public function closeConnection() {
-        $this->conn->close();
+        if ($this->conn) {
+            $this->conn->close();
+            $this->conn = null;
+        }
     }
 
-    public function getLastInsertId() {
-        if (!$this->connection) {
-            
-            $this->connect();
-        }
-        
-        if ($this->connection) {
-            return $this->connection->lastInsertId();
-        }
-        
-        return null; 
+    // Ensure connection is closed when object is destroyed
+    public function __destruct() {
+        $this->closeConnection();
     }
+}
 
-    
+/**
+ * Logging function for system activities
+ * @param int $user_id User performing the activity
+ * @param string $activity_type Type of activity
+ * @param string $description Activity description
+ */
+function logActivity($user_id, $activity_type, $description) {
+    try {
+        $db = new Database();
+        $query = "INSERT INTO activity_logs (user_id, activity_type, description) VALUES (?, ?, ?)";
+        $db->execute($query, [$user_id, $activity_type, $description]);
+    } catch (Exception $e) {
+        error_log("Activity Logging Error: " . $e->getMessage());
+    }
 }

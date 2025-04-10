@@ -257,6 +257,11 @@ try {
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link" href="add_activities.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
+                    <i class="bi bi-arrow-repeat"></i> Activities
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link" href="calendar.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-calendar3"></i> Calendar
                     <?php if(isset($upcoming_events) && $upcoming_events > 0): ?>
@@ -455,7 +460,7 @@ try {
                     </div>
                     <div class="card-footer bg-transparent border-top-0">
                         <div class="d-flex justify-content-between">
-                            <a href="view_parent_leader.php?id=<?php echo $leader['user_id']; ?><?php echo $selected_barangay_id ? '&barangay_id='.$selected_barangay_id : ''; ?>" class="btn btn-sm btn-outline-primary">
+                            <a href="tabs/view_parent_leader.php?id=<?php echo $leader['user_id']; ?><?php echo $selected_barangay_id ? '&barangay_id='.$selected_barangay_id : ''; ?>" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-eye"></i> View Details
                             </a>
                             <a href="beneficiaries.php?parent_leader_id=<?php echo $leader['user_id']; ?><?php echo $selected_barangay_id ? '&barangay_id='.$selected_barangay_id : ''; ?>" class="btn btn-sm btn-outline-secondary">

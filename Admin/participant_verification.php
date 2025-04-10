@@ -242,6 +242,11 @@ try {
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link" href="add_activities.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
+                    <i class="bi bi-arrow-repeat"></i> Activities
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link" href="calendar.php">
                     <i class="bi bi-calendar3"></i> Calendar
                     <?php if($upcoming_events > 0): ?>

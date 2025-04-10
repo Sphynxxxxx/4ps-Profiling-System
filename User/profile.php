@@ -721,6 +721,11 @@ $displayRole = ucfirst($user['role'] ?? $_SESSION['role'] ?? 'Resident');
                             <i class="bi bi-person"></i> Profile
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="activities.php">
+                            <i class="bi bi-calendar2-check"></i> Activities
+                        </a>
+                    </li>
                     <?php if ($user['role'] == 'resident'): ?>
                     <li class="nav-item">
                         <a class="nav-link" href="benefits.php">
