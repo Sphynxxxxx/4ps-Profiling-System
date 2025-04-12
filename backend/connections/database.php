@@ -203,6 +203,11 @@ class Database {
     public function __destruct() {
         $this->closeConnection();
     }
+
+        
+    public function isConnected() {
+        return $this->connection !== null;
+    }
 }
 
 /**

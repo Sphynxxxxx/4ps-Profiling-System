@@ -528,9 +528,6 @@ function formatDate($date) {
                                     <?php endif; ?>
                                 </div>
                                 <div class="card-footer bg-white border-top-0 d-flex justify-content-between align-items-center">
-                                    <small class="text-muted">
-                                        Created by: <?php echo htmlspecialchars($activity['firstname'] . ' ' . $activity['lastname']); ?>
-                                    </small>
                                     <a href="control/view_activity.php?id=<?php echo $activity['activity_id']; ?>" class="btn btn-sm btn-outline-primary">
                                         View Details
                                     </a>

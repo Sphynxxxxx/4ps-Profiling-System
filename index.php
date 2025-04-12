@@ -72,7 +72,7 @@
             <h2 class="section-title">How We Support Communities</h2>
             <p class="section-subtitle">The 4P's Profiling System offers efficient management tools for conditional cash transfer programs that benefit Filipino families.</p>
             
-            <div class="row">
+            <div class="row"> 
                 <div class="col-md-6 col-lg-3 mb-4">
                     <div class="feature-card">
                         <div class="feature-icon">
