@@ -1,6 +1,8 @@
 <?php
+session_start();
 require_once "../backend/connections/config.php";
 require_once "../backend/connections/database.php";
+
 
 // Initialize variables
 $error_message = "";
@@ -9,6 +11,12 @@ $pending_users = [];
 
 // Get the selected barangay ID from URL parameter
 $selected_barangay_id = isset($_GET['barangay_id']) ? intval($_GET['barangay_id']) : null;
+
+if ($selected_barangay_id) {
+    $_SESSION['default_barangay_id'] = $selected_barangay_id;
+} elseif (isset($_SESSION['default_barangay_id'])) {
+    $selected_barangay_id = $_SESSION['default_barangay_id'];
+}
 
 try {
     $db = new Database();
@@ -214,17 +222,31 @@ try {
             <h1>4P's Profiling System ADMIN DASHBOARD</h1>
         </div>
     </header>
-    
+
+    <div class="main-content">
+        <!-- Barangay Header if specific barangay is selected -->
+        <?php if($selected_barangay_id && $current_barangay): ?>
+        <div class="alert alert-success mb-4" role="alert">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-building fs-1 me-3"></i>
+                <div>
+                    <h4 class="alert-heading">Barangay <?php echo htmlspecialchars($current_barangay['name']); ?> Parent Leaders</h4>
+                    <p class="mb-0">Barangay Captain: <?php echo htmlspecialchars($current_barangay['captain_name'] ?: 'Not Assigned'); ?></p>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+    </div>    
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
         <ul class="nav flex-column">
             <li class="nav-item">
-                <a class="nav-link" href="admin_dashboard.php">
+                <a class="nav-link <?php echo $current_page == 'dashboard' ? 'active' : ''; ?>" href="admin_dashboard.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-speedometer2"></i> Dashboard
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link active" href="participant_verification.php">
+                <a class="nav-link active <?php echo $current_page == 'verification' ? 'active' : ''; ?>" href="participant_verification.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-person-check"></i> Parent Leader Verification
                     <?php if($pending_verifications > 0): ?>
                     <span class="badge bg-danger rounded-pill ms-auto"><?php echo $pending_verifications; ?></span>
@@ -232,22 +254,22 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="parent_leaders.php">
+                <a class="nav-link <?php echo $current_page == 'parent_leaders' ? 'active' : ''; ?>" href="parent_leaders.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-people"></i> List of Parent Leaders
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="beneficiaries.php">
+                <a class="nav-link <?php echo $current_page == 'beneficiaries' ? 'active' : ''; ?>" href="beneficiaries.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-people"></i> Beneficiaries
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="add_activities.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
+                <a class="nav-link <?php echo $current_page == 'activities' ? 'active' : ''; ?>" href="add_activities.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-arrow-repeat"></i> Activities
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="calendar.php">
+                <a class="nav-link <?php echo $current_page == 'calendar' ? 'active' : ''; ?>" href="calendar.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-calendar3"></i> Calendar
                     <?php if($upcoming_events > 0): ?>
                     <span class="badge bg-primary rounded-pill ms-auto"><?php echo $upcoming_events; ?></span>
@@ -255,7 +277,7 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="messages.php">
+                <a class="nav-link <?php echo $current_page == 'messages' ? 'active' : ''; ?>" href="messages.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-chat-left-text"></i> Messages
                     <?php if($unread_messages > 0): ?>
                     <span class="badge bg-danger rounded-pill ms-auto"><?php echo $unread_messages; ?></span>
@@ -263,12 +285,12 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="reports.php">
+                <a class="nav-link <?php echo $current_page == 'reports' ? 'active' : ''; ?>" href="reports.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-file-earmark-text"></i> Reports
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="settings.php">
+                <a class="nav-link <?php echo $current_page == 'settings' ? 'active' : ''; ?>" href="settings.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-gear"></i> System Settings
                 </a>
             </li>
@@ -280,20 +302,25 @@ try {
         </ul>
         
         <?php if (!empty($barangays)): ?>
-        <div class="mt-4 p-3 bg-light rounded">
-            <h6 class="mb-2"><i class="bi bi-geo-alt me-2"></i>Select Barangay</h6>
-            <form action="" method="GET" id="barangayForm">
-                <select class="form-select form-select-sm" name="barangay_id" id="barangay_id" onchange="document.getElementById('barangayForm').submit();">
-                    <?php foreach($barangays as $barangay): ?>
-                    <option value="<?php echo $barangay['barangay_id']; ?>" 
-                        <?php echo (($selected_barangay_id == $barangay['barangay_id']) ? 'selected' : ''); ?>>
-                        <?php echo htmlspecialchars($barangay['name']); ?> 
-                        (<?php echo $barangay['users_count']; ?> Parent Leaders)
-                    </option>
-                    <?php endforeach; ?>
-                </select>
-            </form>
-        </div>
+            <div class="mt-4 p-3 bg-light rounded">
+                <h6 class="mb-2"><i class="bi bi-geo-alt me-2"></i>Select Barangay</h6>
+                <form action="" method="GET" id="barangayForm">
+                    <select class="form-select form-select-sm" name="barangay_id" id="barangay_id" onchange="document.getElementById('barangayForm').submit();">
+                        <?php foreach($barangays as $barangay): ?>
+                        <option value="<?php echo $barangay['barangay_id']; ?>" 
+                            <?php echo (($selected_barangay_id == $barangay['barangay_id']) ? 'selected' : ''); ?>>
+                            <?php echo htmlspecialchars($barangay['name']); ?>
+                        </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <?php if (isset($_GET['parent_leader_id'])): ?>
+                    <input type="hidden" name="parent_leader_id" value="<?php echo intval($_GET['parent_leader_id']); ?>">
+                    <?php endif; ?>
+                    <?php if (isset($_GET['search'])): ?>
+                    <input type="hidden" name="search" value="<?php echo htmlspecialchars($_GET['search']); ?>">
+                    <?php endif; ?>
+                </form>
+            </div>
         <?php endif; ?>
     </div>
     
@@ -858,6 +885,30 @@ try {
         document.getElementById('searchInput')?.addEventListener('keyup', function(event) {
             if (event.key === 'Enter') {
                 searchTable();
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Preserve barangay_id when submitting any form that doesn't already have it
+            const forms = document.querySelectorAll('form');
+            const barangayId = <?php echo $selected_barangay_id ? $selected_barangay_id : 'null'; ?>;
+            
+            if (barangayId) {
+                forms.forEach(form => {
+                    // Skip forms that already handle barangay_id
+                    if (form.id === 'barangayForm' || form.querySelector('[name="barangay_id"]')) {
+                        return;
+                    }
+                    
+                    // Only add to forms that submit to the same site (not external)
+                    if (!form.action || form.action.includes(window.location.hostname)) {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'barangay_id';
+                        input.value = barangayId;
+                        form.appendChild(input);
+                    }
+                });
             }
         });
     </script>

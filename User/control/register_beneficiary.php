@@ -287,6 +287,22 @@ try {
                             </div>
                             <div class="card-body p-4">
                                 
+                                <?php if (isset($_SESSION['success'])): ?>
+                                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                    <i class="bi bi-check-circle-fill me-2"></i> <?php echo $_SESSION['success']; ?>
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                                <?php unset($_SESSION['success']); ?>
+                                <?php endif; ?>
+                                
+                                <?php if (isset($_SESSION['error'])): ?>
+                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                    <i class="bi bi-exclamation-triangle-fill me-2"></i> <?php echo $_SESSION['error']; ?>
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                                <?php unset($_SESSION['error']); ?>
+                                <?php endif; ?>
+                                
                                 <?php if ($success): ?>
                                 <div class="alert alert-success alert-dismissible fade show" role="alert">
                                     <i class="bi bi-check-circle-fill me-2"></i> <?php echo $successMessage; ?>
@@ -305,7 +321,7 @@ try {
                                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                                 </div>
                                 <?php endif; ?>
-                                
+
                                 <form method="POST" action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>" novalidate>
                                     <div class="row g-3">
                                         <!-- Personal Information -->

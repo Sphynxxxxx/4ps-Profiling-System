@@ -727,11 +727,6 @@ $displayRole = ucfirst($user['role'] ?? $_SESSION['role'] ?? 'Resident');
                         </a>
                     </li>
                     <?php if ($user['role'] == 'resident'): ?>
-                    <li class="nav-item">
-                        <a class="nav-link" href="benefits.php">
-                            <i class="bi bi-cash-coin"></i> Benefits
-                        </a>
-                    </li>
                     <?php endif; ?>
                     <?php if ($user['role'] == 'admin' || $user['role'] == 'staff'): ?>
                     <li class="nav-item">

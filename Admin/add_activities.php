@@ -3,9 +3,13 @@ session_start();
 require_once "../backend/connections/config.php";
 require_once "../backend/connections/database.php";
 
-// Make sure we have a valid barangay ID
-$default_barangay_id = isset($_SESSION['default_barangay_id']) ? intval($_SESSION['default_barangay_id']) : null;
-$selected_barangay_id = isset($_GET['barangay_id']) ? intval($_GET['barangay_id']) : $default_barangay_id;
+$selected_barangay_id = isset($_GET['barangay_id']) ? intval($_GET['barangay_id']) : null;
+
+if ($selected_barangay_id) {
+    $_SESSION['default_barangay_id'] = $selected_barangay_id;
+} elseif (isset($_SESSION['default_barangay_id'])) {
+    $selected_barangay_id = $_SESSION['default_barangay_id'];
+}
 
 // Get selected parent leader ID from URL parameter
 $selected_parent_leader_id = isset($_GET['parent_leader_id']) ? intval($_GET['parent_leader_id']) : null;
@@ -174,6 +178,38 @@ try {
 } catch (Exception $e) {
     $error_message = "Error fetching barangays: " . $e->getMessage();
 }
+
+try {
+    // Get pending verifications count
+    $pendingVerificationsQuery = $selected_barangay_id 
+        ? "SELECT COUNT(*) as pending FROM users WHERE account_status = 'pending' AND role = 'resident' AND barangay = ?"
+        : "SELECT COUNT(*) as pending FROM users WHERE account_status = 'pending' AND role = 'resident'";
+    $params = $selected_barangay_id ? [$selected_barangay_id] : [];
+    $result = $params ? $db->fetchOne($pendingVerificationsQuery, $params) : $db->fetchOne($pendingVerificationsQuery);
+    $pending_verifications = $result ? $result['pending'] : 0;
+    
+    // Get upcoming events count
+    $upcomingEventsQuery = $selected_barangay_id
+        ? "SELECT COUNT(*) as upcoming FROM events WHERE event_date >= CURDATE() AND barangay_id = ?"
+        : "SELECT COUNT(*) as upcoming FROM events WHERE event_date >= CURDATE()";
+    $params = $selected_barangay_id ? [$selected_barangay_id] : [];
+    $result = $params ? $db->fetchOne($upcomingEventsQuery, $params) : $db->fetchOne($upcomingEventsQuery);
+    $upcoming_events = $result ? $result['upcoming'] : 0;
+    
+    // Get unread messages count
+    $unreadMessagesQuery = $selected_barangay_id
+        ? "SELECT COUNT(*) as unread FROM messages WHERE status = 'unread' AND (sender_barangay_id = ? OR receiver_barangay_id = ?)"
+        : "SELECT COUNT(*) as unread FROM messages WHERE status = 'unread'";
+    $params = $selected_barangay_id ? [$selected_barangay_id, $selected_barangay_id] : [];
+    $result = $params ? $db->fetchOne($unreadMessagesQuery, $params) : $db->fetchOne($unreadMessagesQuery);
+    $unread_messages = $result ? $result['unread'] : 0;
+} catch (Exception $e) {
+    // Set defaults if there's a database error
+    $pending_verifications = 0;
+    $upcoming_events = 0;
+    $unread_messages = 0;
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -233,56 +269,56 @@ try {
     <div class="sidebar" id="sidebar">
         <ul class="nav flex-column">
             <li class="nav-item">
-                <a class="nav-link" href="admin_dashboard.php">
+                <a class="nav-link <?php echo $current_page == 'dashboard' ? 'active' : ''; ?>" href="admin_dashboard.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-speedometer2"></i> Dashboard
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="participant_verification.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
+                <a class="nav-link <?php echo $current_page == 'verification' ? 'active' : ''; ?>" href="participant_verification.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-person-check"></i> Parent Leader Verification
-                    <?php if(isset($pending_verifications) && $pending_verifications > 0): ?>
+                    <?php if($pending_verifications > 0): ?>
                     <span class="badge bg-danger rounded-pill ms-auto"><?php echo $pending_verifications; ?></span>
                     <?php endif; ?>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="parent_leaders.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
+                <a class="nav-link <?php echo $current_page == 'parent_leaders' ? 'active' : ''; ?>" href="parent_leaders.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-people"></i> List of Parent Leaders
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="beneficiaries.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?><?php echo isset($parent_leader) ? '&parent_leader_id='.$parent_leader['user_id'] : ''; ?>">
+                <a class="nav-link <?php echo $current_page == 'beneficiaries' ? 'active' : ''; ?>" href="beneficiaries.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-people"></i> Beneficiaries
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link active" href="add_activities.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
+                <a class="nav-link active <?php echo $current_page == 'activities' ? 'active' : ''; ?>" href="add_activities.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-arrow-repeat"></i> Activities
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="calendar.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
+                <a class="nav-link <?php echo $current_page == 'calendar' ? 'active' : ''; ?>" href="calendar.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-calendar3"></i> Calendar
-                    <?php if(isset($upcoming_events) && $upcoming_events > 0): ?>
+                    <?php if($upcoming_events > 0): ?>
                     <span class="badge bg-primary rounded-pill ms-auto"><?php echo $upcoming_events; ?></span>
                     <?php endif; ?>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="messages.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
+                <a class="nav-link <?php echo $current_page == 'messages' ? 'active' : ''; ?>" href="messages.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-chat-left-text"></i> Messages
-                    <?php if(isset($unread_messages) && $unread_messages > 0): ?>
+                    <?php if($unread_messages > 0): ?>
                     <span class="badge bg-danger rounded-pill ms-auto"><?php echo $unread_messages; ?></span>
                     <?php endif; ?>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="reports.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
+                <a class="nav-link <?php echo $current_page == 'reports' ? 'active' : ''; ?>" href="reports.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-file-earmark-text"></i> Reports
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="settings.php">
+                <a class="nav-link <?php echo $current_page == 'settings' ? 'active' : ''; ?>" href="settings.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-gear"></i> System Settings
                 </a>
             </li>
@@ -292,7 +328,6 @@ try {
                 </a>
             </li>
         </ul>
-        
     </div>
     
     <!-- Main Content -->
@@ -534,6 +569,29 @@ try {
                     alert('Please fill in all required fields including selecting a barangay.');
                 }
             });
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const forms = document.querySelectorAll('form');
+            const barangayId = <?php echo $selected_barangay_id ? $selected_barangay_id : 'null'; ?>;
+            
+            if (barangayId) {
+                forms.forEach(form => {
+                    // Skip forms that already handle barangay_id
+                    if (form.id === 'barangayForm' || form.querySelector('[name="barangay_id"]')) {
+                        return;
+                    }
+                    
+                    // Only add to forms that submit to the same site (not external)
+                    if (!form.action || form.action.includes(window.location.hostname)) {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'barangay_id';
+                        input.value = barangayId;
+                        form.appendChild(input);
+                    }
+                });
+            }
         });
     </script>
 </body>

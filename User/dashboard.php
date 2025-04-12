@@ -39,14 +39,23 @@ try {
     }
 
     // Count total beneficiaries
-    $beneficiaryCountSql = "SELECT COUNT(*) as total FROM beneficiaries";
-    $beneficiaryResult = $db->fetchOne($beneficiaryCountSql);
+    $beneficiaryCountSql = "SELECT COUNT(*) as total FROM beneficiaries WHERE parent_leader_id = ?";
+    $beneficiaryResult = $db->fetchOne($beneficiaryCountSql, [$userId]);
     $totalBeneficiaries = $beneficiaryResult['total'] ?? 0;
-    
+        
     // Count active programs (activities that are currently ongoing)
-    $activeProgramsSql = "SELECT COUNT(*) as total FROM activities 
-                         WHERE CURDATE() BETWEEN start_date AND end_date";
-    $programsResult = $db->fetchOne($activeProgramsSql);
+    if ($userRole == 'admin' || $userRole == 'staff') {
+        // Admin and staff see all active programs
+        $activeProgramsSql = "SELECT COUNT(*) as total FROM activities 
+                            WHERE CURDATE() BETWEEN start_date AND end_date";
+        $programsResult = $db->fetchOne($activeProgramsSql);
+    } else {
+        // Regular users only see active programs in their barangay
+        $activeProgramsSql = "SELECT COUNT(*) as total FROM activities 
+                            WHERE CURDATE() BETWEEN start_date AND end_date 
+                            AND barangay_id = ?";
+        $programsResult = $db->fetchOne($activeProgramsSql, [$userBarangayId]);
+    }
     $activePrograms = $programsResult['total'] ?? 0;
     
     $complianceRate = 85; 

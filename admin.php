@@ -2,10 +2,24 @@
 require_once "backend/connections/config.php";
 require_once "backend/connections/database.php";
 
+// Start session if not already started
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
+if (isset($_POST['barangay_id'])) {
+    $barangayId = intval($_POST['barangay_id']);
+    
+    // Update the user's barangay field
+    $updateQuery = "UPDATE users SET barangay = ? WHERE user_id = ?";
+    $db->execute($updateQuery, [$barangayId, $userId]);
+}
+
 // Initialize variables
 $message = '';
 $messageType = '';
-$selected_barangay_id = isset($_GET['barangay_id']) ? intval($_GET['barangay_id']) : null;
+$selected_barangay_id = isset($_SESSION['selected_barangay_id']) ? intval($_SESSION['selected_barangay_id']) : 
+                        (isset($_GET['barangay_id']) ? intval($_GET['barangay_id']) : null);
 
 // Handle barangay registration form submission
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register_barangay'])) {
@@ -54,7 +68,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register_barangay'])) 
                 
                 // Insert new barangay
                 $insertQuery = "INSERT INTO barangays (name, captain_name, image_path, created_at) VALUES (?, ?, ?, NOW())";
-                $db->execute($insertQuery, [$name, $captain_name, $image_path]);
+                $barangayId = $db->insert($insertQuery, [$name, $captain_name, $image_path]);
                 
                 // Log activity
                 $activityQuery = "INSERT INTO activity_logs (user_id, activity_type, description, created_at) 
@@ -63,6 +77,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register_barangay'])) 
                 
                 $message = "Barangay registered successfully!";
                 $messageType = "success";
+                
+                // Set the newly created barangay as selected
+                $_SESSION['selected_barangay_id'] = $barangayId;
+                $selected_barangay_id = $barangayId;
             }
             
         } catch (Exception $e) {
@@ -84,12 +102,18 @@ if (isset($_GET['delete_barangay']) && isset($_GET['id'])) {
         $result = $db->fetchOne($nameQuery, [$barangay_id]);
         $barangay_name = $result ? $result['name'] : 'Unknown';
         
-        // Check if there are beneficiaries in this barangay
-        $checkQuery = "SELECT COUNT(*) as count FROM beneficiaries WHERE barangay_id = ?";
-        $result = $db->fetchOne($checkQuery, [$barangay_id]);
+        // Check if there are beneficiaries or users in this barangay
+        $checkBeneficiariesQuery = "SELECT COUNT(*) as count FROM beneficiaries WHERE barangay_id = ?";
+        $resultBeneficiaries = $db->fetchOne($checkBeneficiariesQuery, [$barangay_id]);
         
-        if ($result && $result['count'] > 0) {
-            $message = "Cannot delete barangay because it has " . $result['count'] . " beneficiaries. Please reassign or delete them first.";
+        $checkUsersQuery = "SELECT COUNT(*) as count FROM users WHERE barangay = ?";
+        $resultUsers = $db->fetchOne($checkUsersQuery, [$barangay_id]);
+        
+        $totalAssociatedRecords = ($resultBeneficiaries ? $resultBeneficiaries['count'] : 0) + 
+                                  ($resultUsers ? $resultUsers['count'] : 0);
+        
+        if ($totalAssociatedRecords > 0) {
+            $message = "Cannot delete barangay because it has " . $totalAssociatedRecords . " associated records (beneficiaries or users). Please reassign or delete them first.";
             $messageType = "danger";
         } else {
             // Delete barangay
@@ -103,6 +127,12 @@ if (isset($_GET['delete_barangay']) && isset($_GET['id'])) {
             
             $message = "Barangay deleted successfully!";
             $messageType = "success";
+            
+            // If the deleted barangay was selected, clear the selection
+            if ($_SESSION['selected_barangay_id'] == $barangay_id) {
+                unset($_SESSION['selected_barangay_id']);
+                $selected_barangay_id = null;
+            }
         }
     } catch (Exception $e) {
         $message = "Error: " . $e->getMessage();
@@ -175,31 +205,58 @@ try {
     // Fetch all barangays information
     $barangaysQuery = "SELECT b.barangay_id, b.name, 
                     COALESCE(b.captain_name, 'No Captain Assigned') as captain_name, 
-                    COUNT(ben.beneficiary_id) as total_beneficiaries, 
+                    (SELECT COUNT(*) FROM beneficiaries WHERE barangay_id = b.barangay_id) as total_beneficiaries,
+                    (SELECT COUNT(*) FROM users WHERE barangay = b.barangay_id AND role = 'resident' AND account_status = 'active') as registered_users,
                     b.image_path
                     FROM barangays b 
-                    LEFT JOIN beneficiaries ben ON b.barangay_id = ben.barangay_id 
                     GROUP BY b.barangay_id
                     ORDER BY b.name ASC";
     $barangays = $db->fetchAll($barangaysQuery);
+    
+    // Fetch current selected barangay details
+    $current_barangay = null;
+    if ($selected_barangay_id) {
+        $barangayDetailsQuery = "SELECT * FROM barangays WHERE barangay_id = ?";
+        $current_barangay = $db->fetchOne($barangayDetailsQuery, [$selected_barangay_id]);
+    }
     
     // Count total barangays
     $barangay_count = count($barangays);
     
     // Fetch system statistics
     if ($barangay_count > 0) {
-        // Total beneficiaries
-        $totalBeneficiariesQuery = "SELECT COUNT(*) as total FROM beneficiaries";
-        $result = $db->fetchOne($totalBeneficiariesQuery);
+        // Base statistics queries
+        $stats_params = [];
+        $where_clause = "";
+        
+        // If a barangay is selected, filter statistics by that barangay
+        if ($selected_barangay_id) {
+            $where_clause = "WHERE barangay_id = ?";
+            $stats_params[] = $selected_barangay_id;
+            
+            $users_where_clause = "WHERE barangay = ?";
+            $users_stats_params = [$selected_barangay_id];
+        } else {
+            $where_clause = "";
+            $users_where_clause = "";
+            $users_stats_params = [];
+        }
+        
+        // Total beneficiaries (filtered by barangay if selected)
+        $totalBeneficiariesQuery = "SELECT COUNT(*) as total FROM beneficiaries " . $where_clause;
+        $result = $db->fetchOne($totalBeneficiariesQuery, $stats_params);
         $total_beneficiaries = $result ? $result['total'] : 0;
         
-        // Pending Verifications
+        // Pending Verifications (filtered by barangay if selected)
         $pendingVerificationsQuery = "SELECT COUNT(*) as pending FROM users 
                                      WHERE account_status = 'pending' AND role = 'resident'";
-        $result = $db->fetchOne($pendingVerificationsQuery);
+        if ($selected_barangay_id) {
+            $pendingVerificationsQuery .= " AND barangay = ?";
+        }
+        $result = $db->fetchOne($pendingVerificationsQuery, $users_stats_params);
         $pending_verifications = $result ? $result['pending'] : 0;
         
-        // Upcoming Events
+        // Upcoming Events (could be filtered by barangay if you have a barangay_id column in events table)
         $upcomingEventsQuery = "SELECT COUNT(*) as upcoming FROM events WHERE event_date >= CURDATE()";
         $result = $db->fetchOne($upcomingEventsQuery);
         $upcoming_events = $result ? $result['upcoming'] : 0;
@@ -230,6 +287,7 @@ try {
     $pending_verifications = 0;
     $upcoming_events = 0;
     $unread_messages = 0;
+    $current_barangay = null;
     
     $message = "Database connection error: " . $e->getMessage();
     $messageType = "danger";
@@ -659,7 +717,8 @@ try {
                         <div class="barangay-details">
                             <div class="barangay-name"><?php echo htmlspecialchars($barangay['name']); ?></div>
                             <div class="captain-name">Barangay Captain: <?php echo htmlspecialchars($barangay['captain_name']); ?></div>
-                            <div class="beneficiary-count">Registered 4P's: <?php echo number_format($barangay['total_beneficiaries']); ?></div>
+                            <div class="beneficiary-count">Registered 4P's: <?php echo number_format($barangay['registered_users']); ?></div>
+                            <div class="resident-count">Parent Leaders: <?php echo number_format($barangay['registered_users']); ?></div>
                             
                             <div class="barangay-actions mt-3">
                                 <a href="Admin/admin_dashboard.php?barangay_id=<?php echo $barangay['barangay_id']; ?>" class="btn btn-primary flex-grow-1">
