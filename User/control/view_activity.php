@@ -353,22 +353,22 @@ $createdDate = date('F d, Y g:i A', strtotime($activity['created_at']));
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="members.php">
+                        <a class="nav-link" href="../members.php">
                             <i class="bi bi-people"></i> Members
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="messages.php">
+                        <a class="nav-link" href="../messages.php">
                             <i class="bi bi-chat-left-text"></i> Messages
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="reports.php">
-                            <i class="bi bi-file-earmark-text"></i> Reports
+                        <a class="nav-link" href="../calendar.php">
+                            <i class="bi bi-calendar3"></i> Calendar
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="settings.php">
+                        <a class="nav-link" href="../settings.php">
                             <i class="bi bi-gear"></i> Settings
                         </a>
                     </li>
@@ -459,7 +459,7 @@ $createdDate = date('F d, Y g:i A', strtotime($activity['created_at']));
                                     
                                     <div class="meta-item">
                                         <i class="bi bi-person"></i>
-                                        <span>Created by: <?php echo htmlspecialchars($activity['firstname'] . ' ' . $activity['lastname']); ?></span>
+                                        <span>Created by: Administrator</span>
                                     </div>
                                     
                                     <div class="meta-item">
@@ -562,7 +562,7 @@ $createdDate = date('F d, Y g:i A', strtotime($activity['created_at']));
                                         Please complete this form to provide feedback or confirm your participation in this activity.
                                     </div>
                                     
-                                    <form action="control/submit_activity_response.php" method="POST" enctype="multipart/form-data" class="mt-4">
+                                    <form action="submit_activity_response.php" method="POST" enctype="multipart/form-data" class="mt-4">
                                         <input type="hidden" name="activity_id" value="<?php echo $activityId; ?>">
                                         
                                         <div class="mb-3">
@@ -585,10 +585,6 @@ $createdDate = date('F d, Y g:i A', strtotime($activity['created_at']));
                                             <div class="form-check">
                                                 <input class="form-check-input" type="radio" name="attendance_status" id="attendance_yes" value="yes" required>
                                                 <label class="form-check-label" for="attendance_yes">I will attend this activity</label>
-                                            </div>
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="radio" name="attendance_status" id="attendance_maybe" value="maybe">
-                                                <label class="form-check-label" for="attendance_maybe">I might attend this activity</label>
                                             </div>
                                             <div class="form-check">
                                                 <input class="form-check-input" type="radio" name="attendance_status" id="attendance_no" value="no">
@@ -674,10 +670,6 @@ $createdDate = date('F d, Y g:i A', strtotime($activity['created_at']));
                                                     <div class="form-check">
                                                         <input class="form-check-input" type="radio" name="attendance_status" id="edit_attendance_yes" value="yes" <?php echo ($existingSubmission['attendance_status'] ?? '') == 'yes' ? 'checked' : ''; ?> required>
                                                         <label class="form-check-label" for="edit_attendance_yes">I will attend this activity</label>
-                                                    </div>
-                                                    <div class="form-check">
-                                                        <input class="form-check-input" type="radio" name="attendance_status" id="edit_attendance_maybe" value="maybe" <?php echo ($existingSubmission['attendance_status'] ?? '') == 'maybe' ? 'checked' : ''; ?>>
-                                                        <label class="form-check-label" for="edit_attendance_maybe">I might attend this activity</label>
                                                     </div>
                                                     <div class="form-check">
                                                         <input class="form-check-input" type="radio" name="attendance_status" id="edit_attendance_no" value="no" <?php echo ($existingSubmission['attendance_status'] ?? '') == 'no' ? 'checked' : ''; ?>>

@@ -385,8 +385,8 @@ try {
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="reports.php">
-                            <i class="bi bi-file-earmark-text"></i> Reports
+                        <a class="nav-link" href="calendar.php">
+                            <i class="bi bi-calendar3"></i> Calendar
                         </a>
                     </li>
                     <li class="nav-item">
@@ -452,7 +452,7 @@ try {
                                             <i class="bi bi-journal-check"></i>
                                         </div>
                                         <div>
-                                            <h6 class="card-subtitle mb-1 text-muted">Active Programs</h6>
+                                            <h6 class="card-subtitle mb-1 text-muted">Active Activities</h6>
                                             <h2 class="card-title mb-0"><?php echo number_format($activePrograms); ?></h2>
                                         </div>
                                     </div>
@@ -597,15 +597,16 @@ try {
                                         </div>
                                         
                                         <div class="col-lg-3 col-md-6">
-                                            <a href="reports.php" class="card text-center h-100 text-decoration-none border-warning">
+                                            <a href="calendar.php" class="card text-center h-100 text-decoration-none border-danger">
                                                 <div class="card-body p-3">
-                                                    <div class="rounded-circle bg-warning bg-opacity-10 p-3 d-inline-flex mb-3">
-                                                        <i class="bi bi-file-earmark-text fs-3 text-warning"></i>
+                                                    <div class="rounded-circle bg-danger bg-opacity-10 p-3 d-inline-flex mb-3">
+                                                        <i class="bi bi-calendar-event fs-3 text-danger"></i>
                                                     </div>
-                                                    <h6 class="card-title text-warning">View Reports</h6>
+                                                    <h6 class="card-title text-danger">View Events</h6>
                                                 </div>
                                             </a>
                                         </div>
+
                                     </div>
                                 </div>
                             </div>

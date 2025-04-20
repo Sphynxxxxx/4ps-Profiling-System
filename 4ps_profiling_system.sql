@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 10, 2025 at 11:23 PM
+-- Generation Time: Apr 20, 2025 at 06:00 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -41,14 +41,6 @@ CREATE TABLE `activities` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Stores activities for 4Ps Profiling System';
 
---
--- Dumping data for table `activities`
---
-
-INSERT INTO `activities` (`activity_id`, `title`, `description`, `activity_type`, `start_date`, `end_date`, `attachments`, `barangay_id`, `created_by`, `created_at`, `updated_at`) VALUES
-(33, 'deweqe', 'wqwqw', 'education', '2025-04-01', '2025-04-12', '[]', 2, 27, '2025-04-10 20:35:37', '2025-04-10 20:35:37'),
-(34, 'Activity 1', 'sdasdas', 'education', '2025-04-01', '2025-04-16', '{\"documents\":[\"67f831b03d0c3_Employee_Profile (2).pdf\"],\"images\":[\"67f831b03d302_agri1.png\"]}', 2, 27, '2025-04-10 21:01:36', '2025-04-10 21:01:36');
-
 -- --------------------------------------------------------
 
 --
@@ -68,54 +60,28 @@ CREATE TABLE `activity_logs` (
 --
 
 INSERT INTO `activity_logs` (`log_id`, `user_id`, `activity_type`, `description`, `created_at`) VALUES
-(51, 26, 'CREATE_ACTIVITY', 'Created new activity: asasas', '2025-04-11 02:08:49'),
-(52, 26, 'CREATE_ACTIVITY', 'Created new activity: activity3', '2025-04-11 02:09:38'),
-(53, 26, 'CREATE_ACTIVITY', 'Created new activity: activity1', '2025-04-11 02:11:24'),
-(54, 26, 'CREATE_ACTIVITY', 'Created new activity: activity2', '2025-04-11 02:12:33'),
-(55, 26, 'CREATE_ACTIVITY', 'Created new activity: acitvity4', '2025-04-11 02:15:35'),
-(56, 26, 'CREATE_ACTIVITY', 'Created new activity: activity 5', '2025-04-11 02:17:59'),
-(57, 26, 'CREATE_ACTIVITY', 'Created new activity: activity 1', '2025-04-11 02:23:15'),
-(58, 26, 'CREATE_ACTIVITY', 'Created new activity: activity 2', '2025-04-11 02:23:21'),
-(59, 26, 'CREATE_ACTIVITY', 'Created new activity: activity 3', '2025-04-11 02:23:27'),
-(60, 26, 'CREATE_ACTIVITY', 'Created new activity: activity 4', '2025-04-11 02:23:31'),
-(61, 26, 'CREATE_ACTIVITY', 'Created new activity: activity 5', '2025-04-11 02:23:38'),
-(62, 26, 'CREATE_ACTIVITY', 'Created new activity: activity 6', '2025-04-11 02:33:36'),
-(63, 26, 'DELETE_ACTIVITY', 'Deleted activity ID: 8', '2025-04-11 02:41:10'),
-(64, 26, 'DELETE_ACTIVITY', 'Deleted activity ID: 9', '2025-04-11 02:41:42'),
-(65, 26, 'DELETE_ACTIVITY', 'Deleted activity ID: 10', '2025-04-11 02:43:33'),
-(66, 26, 'DELETE_ACTIVITY', 'Deleted activity ID: 11', '2025-04-11 02:44:15'),
-(67, 26, 'CREATE_ACTIVITY', 'Created new activity: activity 1', '2025-04-11 03:17:28'),
-(68, 26, 'CREATE_ACTIVITY', 'Created new activity: activity 1', '2025-04-11 03:18:29'),
-(69, 26, 'CREATE_ACTIVITY', 'Created new activity: activity 1', '2025-04-11 03:19:23'),
-(70, 26, 'CREATE_ACTIVITY', 'Created new activity: activity 1', '2025-04-11 03:19:47'),
-(71, 26, 'CREATE_ACTIVITY', 'Created new activity: activity 1', '2025-04-11 03:49:57'),
-(72, 26, 'CREATE_ACTIVITY', 'Created new activity: activity 1', '2025-04-11 03:50:12'),
-(73, 26, 'CREATE_ACTIVITY', 'Created new activity: ACTIVITY 3', '2025-04-11 03:51:16'),
-(74, 26, 'CREATE_ACTIVITY', 'Created new activity: AASSA', '2025-04-11 03:51:58'),
-(75, 26, 'CREATE_ACTIVITY', 'Created new activity: ASASA', '2025-04-11 03:52:58'),
-(76, 26, 'CREATE_ACTIVITY', 'Created new activity: ASASA', '2025-04-11 03:53:29'),
-(77, 26, 'CREATE_ACTIVITY', 'Created new activity: ASASA', '2025-04-11 03:53:41'),
-(78, 26, 'CREATE_ACTIVITY', 'Created new activity: ASASA', '2025-04-11 03:53:54'),
-(79, 26, 'DELETE_ACTIVITY', 'Deleted activity ID: 22', '2025-04-11 03:54:05'),
-(80, 26, 'DELETE_ACTIVITY', 'Deleted activity ID: 23', '2025-04-11 03:54:14'),
-(81, 26, 'DELETE_ACTIVITY', 'Deleted activity ID: 24', '2025-04-11 03:54:20'),
-(82, 26, 'DELETE_ACTIVITY', 'Deleted activity ID: 25', '2025-04-11 03:54:29'),
-(83, 26, 'CREATE_ACTIVITY', 'Created new activity: ASDAS', '2025-04-11 03:54:45'),
-(84, 26, 'CREATE_ACTIVITY', 'Created new activity: SASA', '2025-04-11 03:55:16'),
-(85, 26, 'CREATE_ACTIVITY', 'Created new activity: SASAS', '2025-04-11 03:56:21'),
-(86, 26, 'DELETE_ACTIVITY', 'Deleted activity ID: 26', '2025-04-11 03:56:55'),
-(87, 26, 'DELETE_ACTIVITY', 'Deleted activity ID: 27', '2025-04-11 03:57:00'),
-(88, 26, 'DELETE_ACTIVITY', 'Deleted activity ID: 28', '2025-04-11 03:57:06'),
-(89, 26, 'CREATE_ACTIVITY', 'Created new activity: SASAS', '2025-04-11 03:57:18'),
-(90, 26, 'CREATE_ACTIVITY', 'Created new activity: WQWQW', '2025-04-11 03:58:01'),
-(91, 26, 'DELETE_ACTIVITY', 'Deleted activity ID: 30', '2025-04-11 03:58:56'),
-(92, 26, 'DELETE_ACTIVITY', 'Deleted activity ID: 29', '2025-04-11 03:59:06'),
-(93, 26, 'CREATE_ACTIVITY', 'Created new activity: SASAS', '2025-04-11 04:12:06'),
-(94, 26, 'CREATE_ACTIVITY', 'Created new activity: DASAS for barangay ID: 2', '2025-04-11 04:19:36'),
-(95, 26, 'DELETE_ACTIVITY', 'Deleted activity ID: 31', '2025-04-11 04:19:48'),
-(96, 1, 'verification', 'Approved user ID 27 (not added to beneficiaries)', '2025-04-11 04:35:08'),
-(97, 27, 'CREATE_ACTIVITY', 'Created new activity: deweqe for barangay ID: 2', '2025-04-11 04:35:37'),
-(98, 27, 'CREATE_ACTIVITY', 'Created new activity: Activity 1 for barangay ID: 2', '2025-04-11 05:01:36');
+(148, 29, 'barangay_added', 'Added new barangay: barangay2', '2025-04-20 23:59:12'),
+(149, 29, 'barangay_deleted', 'Deleted barangay: barangay2', '2025-04-20 23:59:16'),
+(150, 29, 'barangay_deleted', 'Deleted barangay: Unknown', '2025-04-20 23:59:16'),
+(151, 29, 'barangay_added', 'Added new barangay: barangay2', '2025-04-20 23:59:42'),
+(152, 29, 'barangay_added', 'Added new barangay: barangay3', '2025-04-20 23:59:59');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `activity_participants`
+--
+
+CREATE TABLE `activity_participants` (
+  `participant_id` int(11) NOT NULL,
+  `activity_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `status` enum('yes','maybe','no') NOT NULL DEFAULT 'yes',
+  `attended` tinyint(1) DEFAULT 0,
+  `attendance_date` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -131,6 +97,7 @@ CREATE TABLE `activity_submissions` (
   `comments` text DEFAULT NULL,
   `attendance_status` enum('yes','maybe','no') NOT NULL,
   `file_path` varchar(255) DEFAULT NULL,
+  `file_name` varchar(255) DEFAULT NULL,
   `created_at` datetime NOT NULL,
   `updated_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -155,8 +122,8 @@ CREATE TABLE `barangays` (
 --
 
 INSERT INTO `barangays` (`barangay_id`, `name`, `captain_name`, `image_path`, `created_at`, `updated_at`) VALUES
-(1, 'sasas', 'wqwq', 'assets/images/barangays/barangay_1744045360.jpg', '2025-04-08 01:02:40', NULL),
-(2, 'barangay2', 'dsadas', 'assets/images/barangays/barangay_1744046150.jpg', '2025-04-08 01:15:50', NULL);
+(9, 'barangay2', 'Rigor', 'assets/images/barangays/barangay_1745164782.jpg', '2025-04-20 23:59:42', NULL),
+(10, 'barangay3', 'Nenita', 'assets/images/barangays/barangay_1745164799.jpg', '2025-04-20 23:59:59', NULL);
 
 -- --------------------------------------------------------
 
@@ -179,13 +146,6 @@ CREATE TABLE `beneficiaries` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Dumping data for table `beneficiaries`
---
-
-INSERT INTO `beneficiaries` (`beneficiary_id`, `user_id`, `firstname`, `lastname`, `age`, `year_level`, `phone_number`, `barangay_id`, `parent_leader_id`, `household_size`, `created_at`, `updated_at`) VALUES
-(13, 27, 'larry', 'Biaco', 12, 'Elementary - Grade 4', '', 2, 27, 1, '2025-04-10 20:35:52', '2025-04-10 20:35:52');
-
 -- --------------------------------------------------------
 
 --
@@ -201,7 +161,8 @@ CREATE TABLE `events` (
   `location` varchar(255) DEFAULT NULL,
   `created_by` int(11) DEFAULT NULL,
   `created_at` datetime DEFAULT current_timestamp(),
-  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `barangay_id` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -212,12 +173,17 @@ CREATE TABLE `events` (
 
 CREATE TABLE `messages` (
   `message_id` int(11) NOT NULL,
-  `sender_id` int(11) NOT NULL,
-  `receiver_id` int(11) NOT NULL,
-  `subject` varchar(255) DEFAULT NULL,
+  `sender_id` int(11) DEFAULT NULL,
+  `sender_role` enum('admin','resident','staff') NOT NULL,
+  `sender_barangay_id` int(11) DEFAULT NULL,
+  `receiver_id` int(11) DEFAULT NULL,
+  `receiver_role` enum('admin','resident','staff') NOT NULL,
+  `receiver_barangay_id` int(11) DEFAULT NULL,
+  `subject` varchar(255) NOT NULL,
   `content` text NOT NULL,
-  `status` enum('read','unread') DEFAULT 'unread',
-  `created_at` datetime DEFAULT current_timestamp()
+  `status` enum('read','unread') NOT NULL DEFAULT 'unread',
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -231,6 +197,7 @@ CREATE TABLE `users` (
   `email` varchar(100) NOT NULL,
   `password` varchar(255) NOT NULL,
   `firstname` varchar(50) NOT NULL,
+  `middle_initial` varchar(1) DEFAULT NULL,
   `lastname` varchar(50) NOT NULL,
   `date_of_birth` date NOT NULL,
   `gender` enum('male','female','other','MALE','FEMALE','OTHER') NOT NULL,
@@ -255,13 +222,6 @@ CREATE TABLE `users` (
   `last_login` timestamp NULL DEFAULT NULL,
   `barangay` varchar(100) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `users`
---
-
-INSERT INTO `users` (`user_id`, `email`, `password`, `firstname`, `lastname`, `date_of_birth`, `gender`, `civil_status`, `phone_number`, `region`, `province`, `city`, `household_members`, `dependants`, `family_head`, `occupation`, `household_income`, `income_source`, `valid_id_path`, `proof_of_residency_path`, `profile_image`, `account_status`, `role`, `created_at`, `updated_at`, `last_login`, `barangay`) VALUES
-(27, 'larrydenverbiaco@gmail.com', '$2y$10$jJmgVAdtPPKy/XH5Hj5SFe1b.6hN7nb8AeLWKAhZTDFbv8GSOsS.u', 'larry', 'denverr', '2025-04-10', 'male', 'SINGLE', '09123456789', '6', 'pavia', 'iloilo', 21, 3, 'jdajadasa', 'Web Design', 11111.00, 'EMPLOYMENT', 'uploads/ids/ID_67f82b633cf84.png', 'uploads/residency/PROOF_67f82b633cfd7.png', NULL, 'active', 'resident', '2025-04-10 20:34:43', '2025-04-10 20:43:48', '2025-04-10 20:43:48', '2');
 
 -- --------------------------------------------------------
 
@@ -297,7 +257,18 @@ ALTER TABLE `activities`
 -- Indexes for table `activity_logs`
 --
 ALTER TABLE `activity_logs`
-  ADD PRIMARY KEY (`log_id`);
+  ADD PRIMARY KEY (`log_id`),
+  ADD KEY `idx_activity_logs_user` (`user_id`),
+  ADD KEY `idx_activity_logs_type` (`activity_type`),
+  ADD KEY `idx_activity_logs_created_at` (`created_at`);
+
+--
+-- Indexes for table `activity_participants`
+--
+ALTER TABLE `activity_participants`
+  ADD PRIMARY KEY (`participant_id`),
+  ADD UNIQUE KEY `activity_user` (`activity_id`,`user_id`),
+  ADD KEY `user_id` (`user_id`);
 
 --
 -- Indexes for table `activity_submissions`
@@ -328,13 +299,18 @@ ALTER TABLE `beneficiaries`
 -- Indexes for table `events`
 --
 ALTER TABLE `events`
-  ADD PRIMARY KEY (`event_id`);
+  ADD PRIMARY KEY (`event_id`),
+  ADD KEY `barangay_id` (`barangay_id`);
 
 --
 -- Indexes for table `messages`
 --
 ALTER TABLE `messages`
-  ADD PRIMARY KEY (`message_id`);
+  ADD PRIMARY KEY (`message_id`),
+  ADD KEY `idx_sender` (`sender_id`,`sender_role`),
+  ADD KEY `idx_receiver` (`receiver_id`,`receiver_role`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `idx_created_at` (`created_at`);
 
 --
 -- Indexes for table `users`
@@ -357,49 +333,55 @@ ALTER TABLE `verification_codes`
 -- AUTO_INCREMENT for table `activities`
 --
 ALTER TABLE `activities`
-  MODIFY `activity_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=35;
+  MODIFY `activity_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=39;
 
 --
 -- AUTO_INCREMENT for table `activity_logs`
 --
 ALTER TABLE `activity_logs`
-  MODIFY `log_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=99;
+  MODIFY `log_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=153;
+
+--
+-- AUTO_INCREMENT for table `activity_participants`
+--
+ALTER TABLE `activity_participants`
+  MODIFY `participant_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `activity_submissions`
 --
 ALTER TABLE `activity_submissions`
-  MODIFY `submission_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `submission_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `barangays`
 --
 ALTER TABLE `barangays`
-  MODIFY `barangay_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `barangay_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `beneficiaries`
 --
 ALTER TABLE `beneficiaries`
-  MODIFY `beneficiary_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+  MODIFY `beneficiary_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- AUTO_INCREMENT for table `events`
 --
 ALTER TABLE `events`
-  MODIFY `event_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `event_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `messages`
 --
 ALTER TABLE `messages`
-  MODIFY `message_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `message_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
 
 --
 -- AUTO_INCREMENT for table `verification_codes`
@@ -419,6 +401,13 @@ ALTER TABLE `activities`
   ADD CONSTRAINT `activities_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`);
 
 --
+-- Constraints for table `activity_participants`
+--
+ALTER TABLE `activity_participants`
+  ADD CONSTRAINT `activity_participants_ibfk_1` FOREIGN KEY (`activity_id`) REFERENCES `activities` (`activity_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `activity_participants_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
+
+--
 -- Constraints for table `activity_submissions`
 --
 ALTER TABLE `activity_submissions`
@@ -432,6 +421,12 @@ ALTER TABLE `beneficiaries`
   ADD CONSTRAINT `beneficiaries_ibfk_1` FOREIGN KEY (`barangay_id`) REFERENCES `barangays` (`barangay_id`),
   ADD CONSTRAINT `beneficiaries_ibfk_2` FOREIGN KEY (`parent_leader_id`) REFERENCES `users` (`user_id`),
   ADD CONSTRAINT `fk_beneficiaries_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `events`
+--
+ALTER TABLE `events`
+  ADD CONSTRAINT `events_ibfk_1` FOREIGN KEY (`barangay_id`) REFERENCES `barangays` (`barangay_id`) ON DELETE SET NULL;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

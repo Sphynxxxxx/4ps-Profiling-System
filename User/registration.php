@@ -68,6 +68,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } else {
         $firstName = test_input($_POST["firstname"]);
     }
+
+    if (empty($_POST["middle_initial"])) {
+        $errors["middle_initial"] = "Middle Initial name is required";
+    } else {
+        $middleInitial = test_input($_POST["middle_initial"]);
+    }
     
     if (empty($_POST["lastname"])) {
         $errors["lastname"] = "Last name is required";
@@ -339,15 +345,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         $finalIncomeSource = "OTHERS: " . $otherIncomeSource;
                     }
                     
-                    $insertSql = "INSERT INTO users (email, password, firstname, lastname, date_of_birth, gender, civil_status, 
-                                 phone_number, barangay, region, province, city, household_members, dependants, 
-                                 family_head, occupation, household_income, income_source, valid_id_path, proof_of_residency_path) 
-                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-                    
+                    $insertSql = "INSERT INTO users (email, password, firstname, middle_initial, lastname, date_of_birth, gender, civil_status, 
+                                phone_number, barangay, region, province, city, household_members, dependants, 
+                                family_head, occupation, household_income, income_source, valid_id_path, proof_of_residency_path) 
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
                     $params = [
                         $email,
                         $hashedPassword,
                         $firstName,
+                        $middleInitial, 
                         $lastName,
                         $dateOfBirth,
                         $gender,
@@ -1031,12 +1038,19 @@ if (!empty($success_msg)) {
                         <!-- Personal Information Section -->
                         <div class="form-section">
                             <h2 class="section-title">Personal Information</h2>
-                            
+
                             <div class="mb-3">
                                 <label for="firstname" class="form-label">First Name:</label>
                                 <input type="text" class="form-control <?php echo (!empty($errors['firstname'])) ? 'is-invalid' : ''; ?>" id="firstname" name="firstname" value="<?php echo $firstName; ?>">
                                 <?php if(!empty($errors['firstname'])): ?>
                                     <div class="invalid-feedback"><?php echo $errors['firstname']; ?></div>
+                                <?php endif; ?>
+                            </div>
+                            <div class="mb-3">
+                                <label for="middle_initial" class="form-label">Middle Initial:</label>
+                                <input type="text" class="form-control <?php echo (!empty($errors['middle_initial'])) ? 'is-invalid' : ''; ?>" id="middle_initial" name="middle_initial" value="<?php echo $middleInitial ?? ''; ?>" maxlength="1">
+                                <?php if(!empty($errors['middle_initial'])): ?>
+                                    <div class="invalid-feedback"><?php echo $errors['middle_initial']; ?></div>
                                 <?php endif; ?>
                             </div>
                             <div class="mb-3">

@@ -167,7 +167,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 }
 
 // Fetch available barangays for the dropdown
-// Fetch available barangays for the dropdown
 $barangays = [];
 try {
     $db = new Database();
@@ -178,6 +177,88 @@ try {
 } catch (Exception $e) {
     $error_message = "Error fetching barangays: " . $e->getMessage();
 }
+
+// Fetch activities for the selected barangay
+$activities = [];
+$activities_query_params = [];
+$activities_query = "SELECT a.*, b.name as barangay_name, CONCAT(u.firstname, ' ', u.lastname) as creator_name 
+                    FROM activities a
+                    LEFT JOIN barangays b ON a.barangay_id = b.barangay_id
+                    LEFT JOIN users u ON a.created_by = u.user_id
+                    WHERE 1=1 ";
+
+if ($selected_barangay_id) {
+    $activities_query .= "AND a.barangay_id = ? ";
+    $activities_query_params[] = $selected_barangay_id;
+}
+
+$activities_query .= "ORDER BY a.created_at DESC";
+
+try {
+    $db = new Database();
+    if (!empty($activities_query_params)) {
+        $activities = $db->fetchAll($activities_query, $activities_query_params);
+    } else {
+        $activities = $db->fetchAll($activities_query);
+    }
+    $db->closeConnection();
+} catch (Exception $e) {
+    $error_message = "Error fetching activities: " . $e->getMessage();
+}
+
+// Group activities by type for summary
+$activity_type_counts = [
+    'health_check' => 0,
+    'education' => 0,
+    'family_development_session' => 0,
+    'community_meeting' => 0,
+    'other' => 0
+];
+
+$upcoming_activities = 0;
+$active_activities = 0;
+$completed_activities = 0;
+
+$today = date('Y-m-d');
+
+foreach ($activities as $activity) {
+    // Count by type
+    if (isset($activity_type_counts[$activity['activity_type']])) {
+        $activity_type_counts[$activity['activity_type']]++;
+    } else {
+        $activity_type_counts['other']++;
+    }
+    
+    // Count by status
+    $start_date = $activity['start_date'];
+    $end_date = $activity['end_date'];
+    
+    if ($today < $start_date) {
+        $upcoming_activities++;
+    } elseif ($today > $end_date) {
+        $completed_activities++;
+    } else {
+        $active_activities++;
+    }
+}
+
+// Activity type mapping
+$activity_type_labels = [
+    'health_check' => 'Health Check',
+    'education' => 'Education',
+    'family_development_session' => 'Family Development Session',
+    'community_meeting' => 'Community Meeting',
+    'other' => 'Other'
+];
+
+// Activity type styles
+$activity_type_styles = [
+    'health_check' => 'success',
+    'education' => 'info',
+    'family_development_session' => 'warning',
+    'community_meeting' => 'primary',
+    'other' => 'secondary'
+];
 
 try {
     // Get pending verifications count
@@ -209,7 +290,6 @@ try {
     $upcoming_events = 0;
     $unread_messages = 0;
 }
-
 ?>
 
 <!DOCTYPE html>
@@ -312,13 +392,13 @@ try {
                     <?php endif; ?>
                 </a>
             </li>
-            <li class="nav-item">
+            <!--<li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'reports' ? 'active' : ''; ?>" href="reports.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-file-earmark-text"></i> Reports
                 </a>
-            </li>
+            </li>-->
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'settings' ? 'active' : ''; ?>" href="settings.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
+                <a class="nav-link <?php echo $current_page == 'settings' ? 'active' : ''; ?>" href="#<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-gear"></i> System Settings
                 </a>
             </li>
@@ -355,18 +435,24 @@ try {
                 </div>
                 <div class="card-body">
                     <form action="" method="POST" enctype="multipart/form-data" id="activityForm">
-                        <!-- Barangay Selection Dropdown -->
+                        <!-- Replace the barangay dropdown with a hidden input and display -->
                         <div class="mb-3">
-                            <label for="barangay_id" class="form-label">Select Barangay <span class="text-danger">*</span></label>
-                            <select class="form-select" id="barangay_id" name="barangay_id" required>
-                                <option value="">-- Select Barangay --</option>
-                                <?php foreach ($barangays as $barangay): ?>
-                                    <option value="<?php echo $barangay['barangay_id']; ?>" <?php echo ($selected_barangay_id == $barangay['barangay_id']) ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($barangay['name']); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                            <div class="form-text">Activities will be associated with the selected barangay only.</div>
+                            <label class="form-label">Barangay <span class="text-danger">*</span></label>
+                            <input type="hidden" id="barangay_id" name="barangay_id" value="<?php echo $selected_barangay_id; ?>">
+                            
+                            <?php
+                            // Find the barangay name for display
+                            $barangay_name = "Not Selected";
+                            foreach ($barangays as $barangay) {
+                                if ($barangay['barangay_id'] == $selected_barangay_id) {
+                                    $barangay_name = htmlspecialchars($barangay['name']);
+                                    break;
+                                }
+                            }
+                            ?>
+                            
+                            <div class="form-control bg-light"><?php echo $barangay_name; ?></div>
+                            <div class="form-text">Activities will be associated with this barangay.</div>
                         </div>
 
                         <div class="row">
@@ -432,6 +518,177 @@ try {
                             </button>
                         </div>
                     </form>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0"><i class="bi bi-list-check me-2"></i>Activity List</h3>
+                    <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#activitiesCollapse" aria-expanded="true" aria-controls="activitiesCollapse">
+                        <i class="bi bi-chevron-down"></i>
+                    </button>
+                </div>
+                
+                <div class="collapse show" id="activitiesCollapse">
+                    <div class="card-body">
+                        <!-- Activity Summary Cards -->
+                        <div class="row mb-4">
+                            <div class="col-md-8">
+                                <div class="card border-0 bg-light">
+                                    <div class="card-body">
+                                        <h5 class="card-title">Activities by Type</h5>
+                                        <div class="d-flex flex-wrap gap-2 mt-2">
+                                            <?php foreach ($activity_type_counts as $type => $count): ?>
+                                                <?php if ($count > 0): ?>
+                                                <div class="badge bg-<?php echo $activity_type_styles[$type]; ?> bg-opacity-25 text-<?php echo $activity_type_styles[$type]; ?> p-2">
+                                                    <span class="fw-bold fs-6"><?php echo $count; ?></span>
+                                                    <span class="ms-1"><?php echo $activity_type_labels[$type]; ?></span>
+                                                </div>
+                                                <?php endif; ?>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card border-0 bg-light">
+                                    <div class="card-body">
+                                        <h5 class="card-title">Activity Status</h5>
+                                        <div class="d-flex flex-wrap gap-2 mt-2">
+                                            <div class="badge bg-info bg-opacity-25 text-info p-2">
+                                                <span class="fw-bold fs-6"><?php echo $upcoming_activities; ?></span>
+                                                <span class="ms-1">Upcoming</span>
+                                            </div>
+                                            <div class="badge bg-success bg-opacity-25 text-success p-2">
+                                                <span class="fw-bold fs-6"><?php echo $active_activities; ?></span>
+                                                <span class="ms-1">Active</span>
+                                            </div>
+                                            <div class="badge bg-secondary bg-opacity-25 text-secondary p-2">
+                                                <span class="fw-bold fs-6"><?php echo $completed_activities; ?></span>
+                                                <span class="ms-1">Completed</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <?php if (empty($activities)): ?>
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-2"></i> No activities found for the selected barangay. Create a new activity using the form above.
+                            </div>
+                        <?php else: ?>
+                            <!-- Activities Table -->
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover border">
+                                    <thead class="table-primary">
+                                        <tr>
+                                            <th>Title</th>
+                                            <th>Type</th>
+                                            <th>Date Range</th>
+                                            <th>Status</th>
+                                            <th>Barangay</th>
+                                            <th>Created By</th>
+                                            <th>Created On</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($activities as $activity): ?>
+                                            <?php
+                                            // Determine activity status
+                                            $start_date = $activity['start_date'];
+                                            $end_date = $activity['end_date'];
+                                            
+                                            if ($today < $start_date) {
+                                                $status = ['label' => 'Upcoming', 'class' => 'info'];
+                                            } elseif ($today > $end_date) {
+                                                $status = ['label' => 'Completed', 'class' => 'secondary'];
+                                            } else {
+                                                $status = ['label' => 'Active', 'class' => 'success'];
+                                            }
+                                            
+                                            $type_class = $activity_type_styles[$activity['activity_type']] ?? 'secondary';
+                                            $type_label = $activity_type_labels[$activity['activity_type']] ?? ucfirst(str_replace('_', ' ', $activity['activity_type']));
+                                            ?>
+                                            <tr>
+                                                <td>
+                                                    <a href="tabs/view_activity.php?id=<?php echo $activity['activity_id']; ?>" class="fw-bold text-decoration-none">
+                                                        <?php echo htmlspecialchars($activity['title']); ?>
+                                                    </a>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-<?php echo $type_class; ?>">
+                                                        <?php echo $type_label; ?>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <?php if ($activity['start_date'] && $activity['end_date']): ?>
+                                                        <?php echo date('M d, Y', strtotime($activity['start_date'])); ?> - 
+                                                        <?php echo date('M d, Y', strtotime($activity['end_date'])); ?>
+                                                    <?php elseif ($activity['start_date']): ?>
+                                                        <?php echo date('M d, Y', strtotime($activity['start_date'])); ?>
+                                                    <?php else: ?>
+                                                        <span class="text-muted">No date specified</span>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-<?php echo $status['class']; ?>">
+                                                        <?php echo $status['label']; ?>
+                                                    </span>
+                                                </td>
+                                                <td><?php echo htmlspecialchars($activity['barangay_name'] ?? 'N/A'); ?></td>
+                                                <td><?php echo htmlspecialchars($activity['creator_name'] ?? 'System'); ?></td>
+                                                <td><?php echo date('M d, Y', strtotime($activity['created_at'])); ?></td>
+                                                <td>
+                                                    <div class="btn-group">
+                                                        <a href="tabs/view_activity.php?id=<?php echo $activity['activity_id']; ?>" class="btn btn-sm btn-primary">
+                                                            <i class="bi bi-eye"></i>
+                                                        </a>
+                                                        <a href="tabs/edit_activity.php?id=<?php echo $activity['activity_id']; ?>" class="btn btn-sm btn-warning">
+                                                            <i class="bi bi-pencil"></i>
+                                                        </a>
+                                                        <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal" 
+                                                                data-activity-id="<?php echo $activity['activity_id']; ?>" 
+                                                                data-activity-title="<?php echo htmlspecialchars($activity['title']); ?>">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form action="tabs/delete_activity.php" method="POST">
+                            <div class="modal-body">
+                                <p>Are you sure you want to delete this activity? This action cannot be undone.</p>
+                                <p class="fw-bold" id="activityTitleToDelete"></p>
+                                <input type="hidden" name="activity_id" id="activityIdToDelete">
+                                <?php if ($selected_barangay_id): ?>
+                                    <input type="hidden" name="barangay_id" value="<?php echo $selected_barangay_id; ?>">
+                                <?php endif; ?>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-danger">
+                                    <i class="bi bi-trash me-1"></i> Delete Activity
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
@@ -593,6 +850,18 @@ try {
                 });
             }
         });
+
+        const deleteModal = document.getElementById('deleteModal');
+        if (deleteModal) {
+            deleteModal.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                const activityId = button.getAttribute('data-activity-id');
+                const activityTitle = button.getAttribute('data-activity-title');
+                
+                document.getElementById('activityIdToDelete').value = activityId;
+                document.getElementById('activityTitleToDelete').textContent = activityTitle;
+            });
+        }
     </script>
 </body>
 </html>

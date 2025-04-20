@@ -336,8 +336,8 @@ function formatDate($date) {
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="reports.php">
-                            <i class="bi bi-file-earmark-text"></i> Reports
+                        <a class="nav-link" href="calendar.php">
+                            <i class="bi bi-calendar3"></i> Calendar
                         </a>
                     </li>
                     <li class="nav-item">

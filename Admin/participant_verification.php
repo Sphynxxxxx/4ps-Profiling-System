@@ -284,13 +284,13 @@ try {
                     <?php endif; ?>
                 </a>
             </li>
-            <li class="nav-item">
+            <!--<li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'reports' ? 'active' : ''; ?>" href="reports.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-file-earmark-text"></i> Reports
                 </a>
-            </li>
+            </li>-->
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'settings' ? 'active' : ''; ?>" href="settings.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
+                <a class="nav-link <?php echo $current_page == 'settings' ? 'active' : ''; ?>" href="#<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-gear"></i> System Settings
                 </a>
             </li>
@@ -418,7 +418,10 @@ try {
                                             <div class="d-flex align-items-center">
                                                 <div class="me-2">
                                                     <?php if(!empty($user['profile_image'])): ?>
-                                                    <img src="../User/<?php echo htmlspecialchars($user['profile_image']); ?>" class="avatar-sm rounded-circle" alt="Profile">
+                                                        <img src="../User/<?php echo htmlspecialchars($user['profile_image']); ?>" 
+                                                            class="rounded-circle" 
+                                                            style="width: 50px; height: 50px; object-fit: cover;" 
+                                                            alt="Profile">
                                                     <?php else: ?>
                                                     <div class="avatar-placeholder"><?php echo strtoupper(substr($user['firstname'], 0, 1) . substr($user['lastname'], 0, 1)); ?></div>
                                                     <?php endif; ?>
@@ -493,11 +496,18 @@ try {
                                             <div class="d-flex align-items-center">
                                                 <div class="me-2">
                                                     <?php if(!empty($user['profile_image'])): ?>
-                                                    <img src="../User/<?php echo htmlspecialchars($user['profile_image']); ?>" class="avatar-sm rounded-circle" alt="Profile">
+                                                        <img src="../User/<?php echo htmlspecialchars($user['profile_image']); ?>" 
+                                                            class="rounded-circle" 
+                                                            style="width: 50px; height: 50px; object-fit: cover;" 
+                                                            alt="Profile">
                                                     <?php else: ?>
-                                                    <div class="avatar-placeholder"><?php echo strtoupper(substr($user['firstname'], 0, 1) . substr($user['lastname'], 0, 1)); ?></div>
+                                                        <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center" 
+                                                            style="width: 30px; height: 30px; font-size: 0.75rem;">
+                                                            <?php echo strtoupper(substr($user['firstname'], 0, 1) . substr($user['lastname'], 0, 1)); ?>
+                                                        </div>
                                                     <?php endif; ?>
                                                 </div>
+
                                                 <div>
                                                     <div class="fw-bold"><?php echo htmlspecialchars(ucwords($user['firstname'] . ' ' . $user['lastname'])); ?></div>
                                                     <small><?php echo htmlspecialchars($user['email']); ?></small>
@@ -563,7 +573,10 @@ try {
                                             <div class="d-flex align-items-center">
                                                 <div class="me-2">
                                                     <?php if(!empty($user['profile_image'])): ?>
-                                                    <img src="../User/<?php echo htmlspecialchars($user['profile_image']); ?>" class="avatar-sm rounded-circle" alt="Profile">
+                                                        <img src="../User/<?php echo htmlspecialchars($user['profile_image']); ?>" 
+                                                            class="rounded-circle" 
+                                                            style="width: 50px; height: 50px; object-fit: cover;" 
+                                                            alt="Profile">
                                                     <?php else: ?>
                                                     <div class="avatar-placeholder"><?php echo strtoupper(substr($user['firstname'], 0, 1) . substr($user['lastname'], 0, 1)); ?></div>
                                                     <?php endif; ?>
@@ -636,7 +649,7 @@ try {
                                 <div class="card h-100">
                                     <div class="card-body text-center">
                                         <?php if(!empty($user['profile_image'])): ?>
-                                        <img src="../User/<?php echo htmlspecialchars($user['profile_image']); ?>" class="img-fluid rounded-circle mb-3" style="max-width: 150px;" alt="Profile Image">
+                                            <img src="../User/<?php echo htmlspecialchars($user['profile_image']); ?>" class="img-fluid rounded-circle mb-3" style="width: 50px;" alt="Profile Image">
                                         <?php else: ?>
                                         <div class="avatar-placeholder-lg mb-3">
                                             <?php echo strtoupper(substr($user['firstname'], 0, 1) . substr($user['lastname'], 0, 1)); ?>

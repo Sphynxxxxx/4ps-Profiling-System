@@ -82,6 +82,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $_SESSION['user_id'] = $user['user_id'];
                     $_SESSION['email'] = $user['email'];
                     $_SESSION['firstname'] = $user['firstname'];
+                    $_SESSION['middle_initial'] = $user['middle_initial'];
                     $_SESSION['lastname'] = $user['lastname'];
                     $_SESSION['role'] = $user['role'];
                     $_SESSION['last_activity'] = time(); // Add this for session timeout tracking

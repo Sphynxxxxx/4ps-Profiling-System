@@ -30,6 +30,7 @@ try {
 
     $defaultValues = [
         'firstname' => $_SESSION['firstname'] ?? 'User',
+        'middle_initial' => $_SESSION['middle_initial'] ?? '',
         'lastname' => $_SESSION['lastname'] ?? '',
         'email' => $_SESSION['email'] ?? '',
         'phone_number' => '',
@@ -98,6 +99,7 @@ try {
         // Check if this is a general profile update
         elseif (isset($_POST['update_profile'])) {
             $firstname = trim($_POST['firstname'] ?? '');
+            $middleinitial = trim($_POST['middle_initial'] ?? '');
             $lastname = trim($_POST['lastname'] ?? '');
             $email = trim($_POST['email'] ?? '');
             $phone_number = trim($_POST['phone_number'] ?? '');
@@ -117,6 +119,8 @@ try {
 
             if (empty($firstname)) {
                 $error_message = 'First name is required';
+            } elseif (empty($middleinitial)) {
+                $error_message = 'Middle initial is required';
             } elseif (empty($lastname)) {
                 $error_message = 'Last name is required';
             } elseif (empty($email)) {
@@ -133,6 +137,7 @@ try {
                     // Update user information
                     $updateUserSql = "UPDATE users SET 
                         firstname = ?, 
+                        middle_initial = ?, 
                         lastname = ?, 
                         email = ?, 
                         phone_number = ?, 
@@ -153,6 +158,7 @@ try {
                         WHERE user_id = ?";
                     $db->execute($updateUserSql, [
                         $firstname, 
+                        $middleinitial, 
                         $lastname, 
                         $email, 
                         $phone_number, 
@@ -174,6 +180,7 @@ try {
 
                     // Update session information
                     $_SESSION['firstname'] = $firstname;
+                    $_SESSION['middle_initial'] = $middleinitial;
                     $_SESSION['lastname'] = $lastname;
                     $_SESSION['email'] = $email;
 
@@ -260,7 +267,7 @@ try {
     $error_message = 'An error occurred while loading your profile. Please try again later.';
 }
 
-$displayName = $user['firstname'] . ' ' . $user['lastname'] ?? '';
+$displayName = $user['firstname'] . ' ' . ($user['middle_initial'] ? $user['middle_initial'] . '. ' : '') . ($user['lastname'] ?? '');
 $displayRole = ucfirst($user['role'] ?? $_SESSION['role'] ?? 'Resident');
 ?>
 
@@ -726,6 +733,11 @@ $displayRole = ucfirst($user['role'] ?? $_SESSION['role'] ?? 'Resident');
                             <i class="bi bi-calendar2-check"></i> Activities
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="members.php">
+                            <i class="bi bi-people"></i> Members
+                        </a>
+                    </li>
                     <?php if ($user['role'] == 'resident'): ?>
                     <?php endif; ?>
                     <?php if ($user['role'] == 'admin' || $user['role'] == 'staff'): ?>
@@ -857,9 +869,13 @@ $displayRole = ucfirst($user['role'] ?? $_SESSION['role'] ?? 'Resident');
                                 
                                 <div class="row">
                                     <div class="row">
-                                        <div class="col-md-6 mb-3">
+                                        <div class="col-md-4 mb-3">
                                             <label for="firstname" class="form-label">First Name</label>
                                             <input type="text" class="form-control" id="firstname" name="firstname" value="<?php echo htmlspecialchars($user['firstname']); ?>" required>
+                                        </div>
+                                        <div class="col-md-2 mb-3">
+                                            <label for="middle_initial" class="form-label">M.I.</label>
+                                            <input type="text" class="form-control" id="middle_initial" name="middle_initial" value="<?php echo htmlspecialchars($user['middle_initial'] ?? ''); ?>" maxlength="1">
                                         </div>
                                         <div class="col-md-6 mb-3">
                                             <label for="lastname" class="form-label">Last Name</label>

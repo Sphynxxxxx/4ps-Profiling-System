@@ -1,0 +1,702 @@
+<?php
+require_once "../backend/connections/config.php";
+require_once "../backend/connections/database.php";
+require_once "../backend/connections/helpers.php";
+
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit();
+}
+
+// Initialize variables
+$error_message = '';
+$success_message = '';
+$user_data = null;
+$beneficiaries = [];
+$activities = [];
+
+// Check if user ID is provided
+if (!isset($_GET['id']) || empty($_GET['id'])) {
+    header("Location: members.php");
+    exit();
+}
+
+$member_id = intval($_GET['id']);
+
+try {
+    $db = new Database();
+    
+    // Get current user information and role
+    $current_user_id = $_SESSION['user_id'];
+    $userSql = "SELECT * FROM users WHERE user_id = ?";
+    $current_user = $db->fetchOne($userSql, [$current_user_id]);
+    
+    $userRole = $current_user['role'] ?? 'resident';
+    
+    // Get current user's barangay
+    $userBarangayId = null;
+    if (isset($current_user['barangay'])) {
+        $userBarangayId = intval($current_user['barangay']);
+    } else {
+        try {
+            $beneficiaryQuery = "SELECT barangay_id FROM beneficiaries WHERE user_id = ?";
+            $beneficiaryResult = $db->fetchOne($beneficiaryQuery, [$current_user_id]);
+            if ($beneficiaryResult) {
+                $userBarangayId = $beneficiaryResult['barangay_id'];
+            }
+        } catch (Exception $e) {
+            error_log("Error fetching user's barangay: " . $e->getMessage());
+        }
+    }
+    
+    // Fetch the member's data
+    $memberQuery = "SELECT u.*, b.name as barangay_name 
+                   FROM users u 
+                   LEFT JOIN barangays b ON u.barangay = b.barangay_id 
+                   WHERE u.user_id = ?";
+    $user_data = $db->fetchOne($memberQuery, [$member_id]);
+    
+    // Check if member exists
+    if (!$user_data) {
+        $error_message = "Member not found.";
+    } else {
+        // Check if current user has permission to view this member
+        // Admin and staff can view any member, residents can only view members in their barangay
+        $memberBarangayId = isset($user_data['barangay']) ? intval($user_data['barangay']) : null;
+        
+        if ($userRole != 'admin' && $userRole != 'staff' && $userBarangayId != $memberBarangayId) {
+            header("Location: members.php");
+            exit();
+        }
+        
+        // Fetch beneficiaries related to this member (if they are a parent leader)
+        $beneficiariesQuery = "SELECT b.*, ba.name as barangay_name 
+                              FROM beneficiaries b
+                              LEFT JOIN barangays ba ON b.barangay_id = ba.barangay_id
+                              WHERE b.parent_leader_id = ?
+                              ORDER BY b.lastname, b.firstname";
+        $beneficiaries = $db->fetchAll($beneficiariesQuery, [$member_id]);
+        
+        // Fetch activities created by this member
+        $activitiesQuery = "SELECT a.*, b.name as barangay_name,
+                           (SELECT COUNT(*) FROM activity_submissions WHERE activity_id = a.activity_id) as submission_count
+                           FROM activities a
+                           LEFT JOIN barangays b ON a.barangay_id = b.barangay_id
+                           WHERE a.created_by = ?
+                           ORDER BY a.start_date DESC
+                           LIMIT 5";
+        $activities = $db->fetchAll($activitiesQuery, [$member_id]);
+    }
+    
+    $db->closeConnection();
+} catch (Exception $e) {
+    $error_message = "Error fetching member data: " . $e->getMessage();
+    error_log($error_message);
+}
+
+// Status mapping for display
+$status_labels = [
+    'pending' => '<span class="badge bg-warning text-dark">Pending</span>',
+    'active' => '<span class="badge bg-success">Active</span>',
+    'suspended' => '<span class="badge bg-danger">Suspended</span>',
+    'deactivated' => '<span class="badge bg-secondary">Deactivated</span>'
+];
+
+// Role mapping for display
+$role_labels = [
+    'resident' => '<span class="badge bg-primary">Resident</span>',
+    'staff' => '<span class="badge bg-info">Staff</span>',
+    'admin' => '<span class="badge bg-dark">Admin</span>'
+];
+
+// Activity type mapping for display
+$activity_type_labels = [
+    'health_check' => '<span class="badge bg-success">Health Check</span>',
+    'education' => '<span class="badge bg-primary">Education</span>',
+    'family_development_session' => '<span class="badge bg-info">Family Development</span>',
+    'community_meeting' => '<span class="badge bg-warning text-dark">Community Meeting</span>',
+    'other' => '<span class="badge bg-secondary">Other</span>'
+];
+
+// Function to calculate age from date of birth
+function calculateAge($dob) {
+    $today = new DateTime();
+    $birthdate = new DateTime($dob);
+    $interval = $today->diff($birthdate);
+    return $interval->y;
+}
+
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Member | DSWD 4P's Profiling System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <style>
+        .member-header {
+            padding: 1.5rem;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+        }
+        
+        .member-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .meta-item {
+            display: flex;
+            align-items: center;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        .meta-item i {
+            margin-right: 0.5rem;
+        }
+        
+        .info-card {
+            background-color: #fff;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+        
+        .profile-image {
+            width: 150px;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 50%;
+            margin-bottom: 1rem;
+        }
+        
+        .profile-placeholder {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background-color: #dee2e6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+        
+        .table-hover tbody tr:hover {
+            background-color: rgba(0, 123, 255, 0.05);
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top">
+        <div class="container-fluid">
+            <button class="btn btn-primary sidebar-toggle d-lg-none" type="button">
+                <i class="bi bi-list"></i>
+            </button>
+            
+            <a class="navbar-brand d-flex align-items-center" href="#">
+                <img src="../assets/pngwing.com (7).png" alt="DSWD Logo">
+                <span class="ms-3 text-white">4P's Profiling System</span>
+            </a>
+            
+            <div class="d-flex align-items-center">
+                <div class="dropdown">
+                    <a class="text-white dropdown-toggle text-decoration-none" href="#" role="button" id="userMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-person-circle fs-5 me-1"></i>
+                        <span class="d-none d-md-inline-block"><?php echo $current_user['firstname']; ?></span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
+                        <li><a class="dropdown-item" href="../profile.php"><i class="bi bi-person me-2"></i> My Profile</a></li>
+                        <li><a class="dropdown-item" href="../settings.php"><i class="bi bi-gear me-2"></i> Settings</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="../control/logout.php"><i class="bi bi-box-arrow-right me-2"></i> Logout</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Sidebar and Main Content Container -->
+    <div class="container-fluid p-0">
+        <div class="row g-0">
+            <!-- Sidebar -->
+            <div class="sidebar" id="sidebar">
+                <!-- Navigation Menu -->
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link" href="../dashboard.php">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="../profile.php">
+                            <i class="bi bi-person"></i> Profile
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="../activities.php">
+                            <i class="bi bi-calendar2-check"></i> Activities
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="../members.php">
+                            <i class="bi bi-people"></i> Members
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="../messages.php">
+                            <i class="bi bi-chat-left-text"></i> Messages
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="../calendar.php">
+                            <i class="bi bi-calendar3"></i> Calendar
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="../settings.php">
+                            <i class="bi bi-gear"></i> Settings
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Main Content -->
+            <div class="main-content">
+                <div class="container-fluid pb-5">
+                    <!-- Page Title and Breadcrumb -->
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3">
+                        <div>
+                            <nav aria-label="breadcrumb">
+                                <ol class="breadcrumb mb-1">
+                                    <li class="breadcrumb-item"><a href="../dashboard.php">Dashboard</a></li>
+                                    <li class="breadcrumb-item"><a href="../members.php">Members</a></li>
+                                    <li class="breadcrumb-item active" aria-current="page">View Member</li>
+                                </ol>
+                            </nav>
+                            <h1 class="h3 mb-0 text-gray-800">
+                                Member Details
+                            </h1>
+                        </div>
+                        <div class="mt-2 mt-md-0">
+                            <a href="../members.php" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-1"></i> Back to Members
+                            </a>
+                            <?php if ($userRole == 'admin' || $userRole == 'staff'): ?>
+                                <a href="edit_member.php?id=<?php echo $member_id; ?>" class="btn btn-primary ms-2">
+                                    <i class="bi bi-pencil-square me-1"></i> Edit Member
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <?php if (!empty($error_message)): ?>
+                        <div class="alert alert-danger" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i><?php echo $error_message; ?>
+                        </div>
+                    <?php endif; ?>
+                    
+                    <?php if (!empty($success_message)): ?>
+                        <div class="alert alert-success" role="alert">
+                            <i class="bi bi-check-circle-fill me-2"></i><?php echo $success_message; ?>
+                        </div>
+                    <?php endif; ?>
+                    
+                    <?php if ($user_data): ?>
+                    <!-- Member Header -->
+                    <div class="member-header">
+                        <div class="row">
+                            <div class="col-md-3 text-center">
+                                <?php if (!empty($user['profile_image'])): ?>
+                                    <img src="uploads/profiles/<?php echo htmlspecialchars($user['profile_image']); ?>" 
+                                        class="img-fluid rounded-circle mb-3" 
+                                        style="max-width: 150px;" 
+                                        alt="Profile Image">
+                                <?php else: ?>
+                                    <img src="../assets/default-profile.png" 
+                                        class="img-fluid rounded-circle mb-3" 
+                                        style="max-width: 150px;" 
+                                        alt="Default Profile Image">
+                                <?php endif; ?>`
+
+                                    <div class="profile-placeholder">
+                                        <i class="bi bi-person-fill fs-1 text-secondary"></i>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                            <div class="col-md-9">
+                                <h2 class="mb-2"><?php echo htmlspecialchars($user_data['firstname'] . ' ' . $user_data['lastname']); ?></h2>
+                                
+                                <?php echo $role_labels[$user_data['role'] ?? 'resident']; ?>
+                                <?php echo $status_labels[$user_data['account_status'] ?? 'pending']; ?>
+                                
+                                <div class="member-meta mt-3">
+                                    <div class="meta-item">
+                                        <i class="bi bi-envelope"></i>
+                                        <span><?php echo htmlspecialchars($user_data['email']); ?></span>
+                                    </div>
+                                    
+                                    <?php if (!empty($user_data['phone_number'])): ?>
+                                    <div class="meta-item">
+                                        <i class="bi bi-telephone"></i>
+                                        <span><?php echo htmlspecialchars($user_data['phone_number']); ?></span>
+                                    </div>
+                                    <?php endif; ?>
+                                    
+                                    <div class="meta-item">
+                                        <i class="bi bi-geo-alt"></i>
+                                        <span>Barangay: <?php echo htmlspecialchars($user_data['barangay_name'] ?? 'Not assigned'); ?></span>
+                                    </div>
+                                    
+                                    <div class="meta-item">
+                                        <i class="bi bi-calendar-date"></i>
+                                        <span>Registered on: <?php echo formatDate($user_data['created_at']); ?></span>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-3">
+                                    <a href="mailto:<?php echo htmlspecialchars($user_data['email']); ?>" class="btn btn-outline-primary btn-sm me-2">
+                                        <i class="bi bi-envelope-fill me-1"></i> Send Email
+                                    </a>
+                                    <?php if (!empty($user_data['phone_number'])): ?>
+                                        <a href="tel:<?php echo htmlspecialchars($user_data['phone_number']); ?>" class="btn btn-outline-success btn-sm">
+                                            <i class="bi bi-telephone-fill me-1"></i> Call
+                                        </a>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <!-- Personal Information -->
+                            <div class="info-card">
+                                <h5 class="mb-3">
+                                    <i class="bi bi-person-badge me-2 text-primary"></i>
+                                    Personal Information
+                                </h5>
+                                <table class="table table-borderless">
+                                    <tbody>
+                                        <tr>
+                                            <th width="40%">Full Name</th>
+                                            <td><?php echo htmlspecialchars($user_data['firstname'] . ' ' . $user_data['lastname']); ?></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Date of Birth</th>
+                                            <td>
+                                                <?php echo formatDate($user_data['date_of_birth']); ?> 
+                                                (<?php echo calculateAge($user_data['date_of_birth']); ?> years old)
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Gender</th>
+                                            <td><?php echo ucfirst(strtolower($user_data['gender'])); ?></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Civil Status</th>
+                                            <td><?php echo ucfirst(strtolower($user_data['civil_status'])); ?></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Email</th>
+                                            <td><?php echo htmlspecialchars($user_data['email']); ?></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Phone</th>
+                                            <td><?php echo htmlspecialchars($user_data['phone_number'] ?? 'Not provided'); ?></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- Address Information -->
+                            <div class="info-card">
+                                <h5 class="mb-3">
+                                    <i class="bi bi-geo me-2 text-primary"></i>
+                                    Address Information
+                                </h5>
+                                <table class="table table-borderless">
+                                    <tbody>
+                                        <tr>
+                                            <th width="40%">Barangay</th>
+                                            <td><?php echo htmlspecialchars($user_data['barangay_name'] ?? 'Not assigned'); ?></td>
+                                        </tr>
+                                        <tr>
+                                            <th>City/Municipality</th>
+                                            <td><?php echo htmlspecialchars($user_data['city'] ?? 'Not provided'); ?></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Province</th>
+                                            <td><?php echo htmlspecialchars($user_data['province'] ?? 'Not provided'); ?></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Region</th>
+                                            <td><?php echo htmlspecialchars($user_data['region'] ?? 'Not provided'); ?></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <!-- Household Information -->
+                            <div class="info-card">
+                                <h5 class="mb-3">
+                                    <i class="bi bi-house me-2 text-primary"></i>
+                                    Household Information
+                                </h5>
+                                <table class="table table-borderless">
+                                    <tbody>
+                                        <tr>
+                                            <th width="40%">Household Members</th>
+                                            <td><?php echo intval($user_data['household_members'] ?? 0); ?></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Dependants</th>
+                                            <td><?php echo intval($user_data['dependants'] ?? 0); ?></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Family Head</th>
+                                            <td><?php echo htmlspecialchars($user_data['family_head'] ?? 'Not provided'); ?></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Occupation</th>
+                                            <td><?php echo htmlspecialchars($user_data['occupation'] ?? 'Not provided'); ?></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Household Income</th>
+                                            <td>₱<?php echo number_format(floatval($user_data['household_income'] ?? 0), 2); ?></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Income Source</th>
+                                            <td><?php echo htmlspecialchars($user_data['income_source'] ?? 'Not provided'); ?></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- Account Information -->
+                            <div class="info-card">
+                                <h5 class="mb-3">
+                                    <i class="bi bi-shield-lock me-2 text-primary"></i>
+                                    Account Information
+                                </h5>
+                                <table class="table table-borderless">
+                                    <tbody>
+                                        <tr>
+                                            <th width="40%">Account Status</th>
+                                            <td><?php echo $status_labels[$user_data['account_status'] ?? 'pending']; ?></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Role</th>
+                                            <td><?php echo $role_labels[$user_data['role'] ?? 'resident']; ?></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Created At</th>
+                                            <td><?php echo formatDate($user_data['created_at']); ?></td>
+                                        </tr>
+                                        <tr>
+                                            <th>Last Login</th>
+                                            <td><?php echo $user_data['last_login'] ? formatDate($user_data['last_login']) : 'Never'; ?></td>
+                                        </tr>
+                                        <?php if ($userRole == 'admin'): ?>
+                                        <tr>
+                                            <th>Documents</th>
+                                            <td>
+                                                <a href="<?php echo htmlspecialchars($user_data['valid_id_path']); ?>" target="_blank" class="btn btn-sm btn-outline-primary me-2">
+                                                    <i class="bi bi-card-text me-1"></i> Valid ID
+                                                </a>
+                                                <a href="<?php echo htmlspecialchars($user_data['proof_of_residency_path']); ?>" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                    <i class="bi bi-file-earmark-text me-1"></i> Proof of Residency
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Beneficiaries Section -->
+                    <div class="info-card">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0">
+                                <i class="bi bi-people-fill me-2 text-primary"></i>
+                                Beneficiaries
+                            </h5>
+                            <?php if ($userRole == 'admin' || $userRole == 'staff'): ?>
+                                <a href="add_beneficiary.php?parent_id=<?php echo $member_id; ?>" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-plus-lg me-1"></i> Add Beneficiary
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                        <?php if (empty($beneficiaries)): ?>
+                            <div class="alert alert-light">
+                                <i class="bi bi-info-circle me-2"></i>No beneficiaries found.
+                            </div>
+                        <?php else: ?>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Age</th>
+                                            <th>Year Level</th>
+                                            <th>Barangay</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($beneficiaries as $beneficiary): ?>
+                                            <tr>
+                                                <td><?php echo htmlspecialchars($beneficiary['firstname'] . ' ' . $beneficiary['lastname']); ?></td>
+                                                <td><?php echo intval($beneficiary['age']); ?></td>
+                                                <td><?php echo htmlspecialchars($beneficiary['year_level']); ?></td>
+                                                <td><?php echo htmlspecialchars($beneficiary['barangay_name']); ?></td>
+                                                <td>
+                                                    <a href="view_beneficiary.php?id=<?php echo $beneficiary['beneficiary_id']; ?>" class="btn btn-sm btn-info" title="View">
+                                                        <i class="bi bi-eye"></i>
+                                                    </a>
+                                                    <?php if ($userRole == 'admin' || $userRole == 'staff'): ?>
+                                                        <a href="edit_beneficiary.php?id=<?php echo $beneficiary['beneficiary_id']; ?>" class="btn btn-sm btn-warning" title="Edit">
+                                                            <i class="bi bi-pencil"></i>
+                                                        </a>
+                                                        <button type="button" class="btn btn-sm btn-danger" title="Delete" 
+                                                                onclick="confirmDelete(<?php echo $beneficiary['beneficiary_id']; ?>, '<?php echo htmlspecialchars($beneficiary['firstname'] . ' ' . $beneficiary['lastname']); ?>')">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    <?php endif; ?>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <!-- Activities Section -->
+                    <div class="info-card">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0">
+                                <i class="bi bi-calendar2-check me-2 text-primary"></i>
+                                Recent Activities
+                            </h5>
+                            <a href="../activities.php?user_id=<?php echo $member_id; ?>" class="btn btn-outline-primary btn-sm">
+                                View All Activities
+                            </a>
+                        </div>
+                        <?php if (empty($activities)): ?>
+                            <div class="alert alert-light">
+                                <i class="bi bi-info-circle me-2"></i>No activities found.
+                            </div>
+                        <?php else: ?>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Title</th>
+                                            <th>Type</th>
+                                            <th>Date</th>
+                                            <th>Barangay</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($activities as $activity): ?>
+                                            <tr>
+                                                <td><?php echo htmlspecialchars($activity['title']); ?></td>
+                                                <td><?php echo $activity_type_labels[$activity['activity_type']]; ?></td>
+                                                <td>
+                                                    <?php echo formatDate($activity['start_date']); ?> 
+                                                    <?php if ($activity['end_date'] && $activity['end_date'] != $activity['start_date']): ?>
+                                                        - <?php echo formatDate($activity['end_date']); ?>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td><?php echo htmlspecialchars($activity['barangay_name']); ?></td>
+                                                <td>
+                                                    <a href="view_activity.php?id=<?php echo $activity['activity_id']; ?>" class="btn btn-sm btn-info" title="View">
+                                                        <i class="bi bi-eye"></i>
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteModalLabel">Confirm Delete</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <i class="bi bi-exclamation-triangle-fill text-warning fs-1 d-block text-center mb-3"></i>
+                    <p class="text-center">Are you sure you want to delete beneficiary <strong id="deleteBeneficiaryName"></strong>?</p>
+                    <p class="text-center text-muted small">This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <a href="#" id="deleteBeneficiaryBtn" class="btn btn-danger">Delete</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script>
+        // Toggle sidebar on mobile
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebarToggle = document.querySelector('.sidebar-toggle');
+            const sidebar = document.getElementById('sidebar');
+            
+            if (sidebarToggle) {
+                sidebarToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('show');
+                });
+            }
+            
+            // Close sidebar when clicking outside on mobile
+            document.addEventListener('click', function(event) {
+                if (sidebar.classList.contains('show') && 
+                    !sidebar.contains(event.target) && 
+                    !sidebarToggle.contains(event.target)) {
+                    sidebar.classList.remove('show');
+                }
+            });
+        });
+        
+        // Function to handle beneficiary deletion confirmation
+        function confirmDelete(beneficiaryId, beneficiaryName) {
+            document.getElementById('deleteBeneficiaryName').textContent = beneficiaryName;
+            document.getElementById('deleteBeneficiaryBtn').href = 'delete_beneficiary.php?id=' + beneficiaryId + '&redirect_to=view_member.php?id=<?php echo $member_id; ?>';
+            var deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            deleteModal.show();
+        }
+    </script>
+</body>
+</html>

@@ -370,17 +370,35 @@ try {
                                             </div>
                                             <div class="form-text">Enter 11-digit phone number if available</div>
                                         </div>
-                                        
                                         <div class="col-md-6">
-                                            <label for="barangay" class="form-label required-field">Barangay</label>
-                                            <select class="form-select" id="barangay" name="barangay" required>
-                                                <option value="" disabled <?php echo empty($barangayId) ? 'selected' : ''; ?>>Select Barangay</option>
-                                                <?php foreach ($barangays as $barangay): ?>
-                                                <option value="<?php echo $barangay['barangay_id']; ?>" <?php echo ($barangayId ?? '') == $barangay['barangay_id'] ? 'selected' : ''; ?>>
-                                                    <?php echo htmlspecialchars($barangay['name']); ?>
-                                                </option>
-                                                <?php endforeach; ?>
-                                            </select>
+                                            <label class="form-label">Barangay</label>
+                                            <div class="form-control-plaintext">
+                                                <?php 
+                                                // Get the user's barangay from database
+                                                try {
+                                                    $db = new Database();
+                                                    $userQuery = "SELECT u.barangay, b.name as barangay_name 
+                                                                FROM users u 
+                                                                LEFT JOIN barangays b ON u.barangay = b.barangay_id 
+                                                                WHERE u.user_id = ?";
+                                                    $userData = $db->fetchOne($userQuery, [$_SESSION['user_id']]);
+                                                    $db->closeConnection();
+                                                    
+                                                    $barangayName = 'Not assigned';
+                                                    $userBarangayId = null;
+                                                    
+                                                    if ($userData && !empty($userData['barangay'])) {
+                                                        $barangayName = htmlspecialchars($userData['barangay_name'] ?? 'Not assigned');
+                                                        $userBarangayId = $userData['barangay'];
+                                                    }
+                                                    
+                                                    echo $barangayName;
+                                                } catch (Exception $e) {
+                                                    echo 'Not assigned';
+                                                }
+                                                ?>
+                                            </div>
+                                            <input type="hidden" name="barangay" value="<?php echo $userBarangayId ?? ''; ?>">
                                         </div>
                                         
                                         <div class="col-12 mt-4">
