@@ -386,7 +386,7 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="beneficiaries.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?><?php echo isset($parent_leader) ? '&parent_leader_id='.$parent_leader['user_id'] : ''; ?>">
+                <a class="nav-link" href="../beneficiaries.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?><?php echo isset($parent_leader) ? '&parent_leader_id='.$parent_leader['user_id'] : ''; ?>">
                     <i class="bi bi-people"></i> Beneficiaries
                 </a>
             </li>
@@ -409,11 +409,6 @@ try {
             <li class="nav-item">
                 <a class="nav-link" href="reports.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-file-earmark-text"></i> Reports
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="settings.php">
-                    <i class="bi bi-gear"></i> System Settings
                 </a>
             </li>
             <li class="nav-item">
@@ -758,7 +753,7 @@ try {
                             <tr>
                                 <th scope="row">Beneficiaries</th>
                                 <td>
-                                    <a href="beneficiaries.php?parent_leader_id=<?php echo $parent_leader['user_id']; ?><?php echo $selected_barangay_id ? '&barangay_id='.$selected_barangay_id : ''; ?>" class="btn btn-sm btn-outline-primary">
+                                    <a href="../beneficiaries.php?parent_leader_id=<?php echo $parent_leader['user_id']; ?><?php echo $selected_barangay_id ? '&barangay_id='.$selected_barangay_id : ''; ?>" class="btn btn-sm btn-outline-primary">
                                         <?php echo $parent_leader['beneficiaries_count']; ?> Beneficiaries <i class="bi bi-arrow-right-short"></i>
                                     </a>
                                 </td>

@@ -321,7 +321,6 @@ $createdDate = date('F d, Y g:i A', strtotime($activity['created_at']));
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
                         <li><a class="dropdown-item" href="profile.php"><i class="bi bi-person me-2"></i> My Profile</a></li>
-                        <li><a class="dropdown-item" href="settings.php"><i class="bi bi-gear me-2"></i> Settings</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="control/logout.php"><i class="bi bi-box-arrow-right me-2"></i> Logout</a></li>
                     </ul>
@@ -367,11 +366,6 @@ $createdDate = date('F d, Y g:i A', strtotime($activity['created_at']));
                             <i class="bi bi-calendar3"></i> Calendar
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="../settings.php">
-                            <i class="bi bi-gear"></i> Settings
-                        </a>
-                    </li>
                 </ul>
             </div>
 
@@ -398,20 +392,7 @@ $createdDate = date('F d, Y g:i A', strtotime($activity['created_at']));
                             </a>
                             
                             <?php if ($userRole == 'admin' || $userRole == 'staff' || $activity['created_by'] == $userId): ?>
-                            <div class="btn-group ms-2">
-                                <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="bi bi-gear-fill me-1"></i> Actions
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end">
-                                    <li><a class="dropdown-item" href="edit_activity.php?id=<?php echo $activityId; ?>"><i class="bi bi-pencil me-2"></i> Edit Activity</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li>
-                                        <a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#deleteActivityModal">
-                                            <i class="bi bi-trash me-2"></i> Delete Activity
-                                        </a>
-                                    </li>
-                                </ul>
-                            </div>
+
                             <?php endif; ?>
                         </div>
                     </div>
@@ -645,7 +626,7 @@ $createdDate = date('F d, Y g:i A', strtotime($activity['created_at']));
                                             <h5 class="modal-title" id="editSubmissionModalLabel">Edit Your Submission</h5>
                                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                         </div>
-                                        <form action="control/update_activity_response.php" method="POST" enctype="multipart/form-data">
+                                        <form action="update_activity_response.php" method="POST" enctype="multipart/form-data">
                                             <div class="modal-body">
                                                 <input type="hidden" name="activity_id" value="<?php echo $activityId; ?>">
                                                 <input type="hidden" name="submission_id" value="<?php echo $existingSubmission['submission_id'] ?? ''; ?>">
@@ -722,6 +703,42 @@ $createdDate = date('F d, Y g:i A', strtotime($activity['created_at']));
                                         <span class="badge bg-secondary"><?php echo $participantsCount; ?></span>
                                     </div>
                                     
+                                    <?php
+                                    // Fetch participant names
+                                    try {
+                                        $participantsSql = "SELECT u.firstname, u.lastname, ap.attended, ap.attendance_date 
+                                                        FROM activity_participants ap 
+                                                        JOIN users u ON ap.user_id = u.user_id 
+                                                        WHERE ap.activity_id = ? 
+                                                        ORDER BY ap.created_at DESC";
+                                        $participants = $db->fetchAll($participantsSql, [$activityId]);
+                                        
+                                        if (!empty($participants)): ?>
+                                            <div class="participants-list mb-3" style="max-height: 200px; overflow-y: auto;">
+                                                <?php foreach ($participants as $participant): ?>
+                                                    <div class="participant-item d-flex align-items-center mb-2">
+                                                        <i class="bi bi-person-circle me-2 text-muted"></i>
+                                                        <div class="flex-grow-1">
+                                                            <div class="participant-name">
+                                                                <?php echo htmlspecialchars($participant['firstname'] . ' ' . $participant['lastname']); ?>
+                                                                <?php if ($participant['attended'] == 1): ?>
+                                                                    <span class="badge bg-success ms-1" title="Completed on <?php echo date('M d, Y', strtotime($participant['attendance_date'])); ?>">
+                                                                        <i class="bi bi-check-circle-fill"></i>
+                                                                    </span>
+                                                                <?php endif; ?>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        <?php else: ?>
+                                            <p class="text-muted small mb-3">No participants yet.</p>
+                                        <?php endif;
+                                    } catch (Exception $e) {
+                                        error_log("Error fetching participant names: " . $e->getMessage());
+                                    }
+                                    ?>
+                                    
                                     <?php if ($activityStatus['status'] != 'completed'): ?>
                                         <?php if ($activityStatus['status'] == 'upcoming'): ?>
                                             <div class="alert alert-info mb-3" role="alert">
@@ -735,9 +752,26 @@ $createdDate = date('F d, Y g:i A', strtotime($activity['created_at']));
                                             </div>
                                         <?php endif; ?>
                                         
-                                        <button class="btn btn-primary w-100">
-                                            <i class="bi bi-person-plus me-2"></i> Join Activity
-                                        </button>
+                                        <?php
+                                        // Check if current user has already joined
+                                        $hasJoined = false;
+                                        try {
+                                            $checkUserJoined = "SELECT * FROM activity_participants WHERE activity_id = ? AND user_id = ?";
+                                            $userParticipation = $db->fetchOne($checkUserJoined, [$activityId, $userId]);
+                                            $hasJoined = !empty($userParticipation);
+                                        } catch (Exception $e) {
+                                            error_log("Error checking user participation: " . $e->getMessage());
+                                        }
+                                        
+                                        if ($hasJoined): ?>
+                                            <button class="btn btn-secondary w-100" disabled>
+                                                <i class="bi bi-check-circle me-2"></i> Already Joined
+                                            </button>
+                                        <?php else: ?>
+                                            <button class="btn btn-primary w-100" id="joinActivityBtn" onclick="joinActivity(<?php echo $activityId; ?>)">
+                                                <i class="bi bi-person-plus me-2"></i> Join Activity
+                                            </button>
+                                        <?php endif; ?>
                                     <?php else: ?>
                                         <div class="alert alert-secondary mb-0" role="alert">
                                             <i class="bi bi-calendar-check me-2"></i>
@@ -841,6 +875,33 @@ $createdDate = date('F d, Y g:i A', strtotime($activity['created_at']));
                     }
                 }
             });
+        });
+
+        document.querySelector('.btn-primary.w-100')?.addEventListener('click', function() {
+            if (confirm('Are you sure you want to join this activity?')) {
+                fetch('join_activity.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        activity_id: <?php echo $activityId; ?>
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Successfully joined the activity!');
+                        location.reload();
+                    } else {
+                        alert(data.message || 'Failed to join activity.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while joining the activity.');
+                });
+            }
         });
     </script>
 </body>

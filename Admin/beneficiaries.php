@@ -363,11 +363,6 @@ try {
                 </a>
             </li>-->
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'settings' ? 'active' : ''; ?>" href="#<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
-                    <i class="bi bi-gear"></i> System Settings
-                </a>
-            </li>
-            <li class="nav-item">
                 <a class="nav-link" href="../admin.php">
                     <i class="bi bi-box-arrow-right"></i> Back
                 </a>
@@ -448,9 +443,6 @@ try {
         <!-- Page Header -->
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2><i class="bi bi-people me-2"></i>Beneficiaries</h2>
-            <a href="add_beneficiary.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?><?php echo $selected_parent_leader_id ? '&parent_leader_id='.$selected_parent_leader_id : ''; ?>" class="btn btn-success">
-                <i class="bi bi-person-plus"></i> Add New Beneficiary
-            </a>
         </div>
         
         <!-- Active Filters Display -->
@@ -562,9 +554,9 @@ try {
                     <?php endif; ?>.
                 </p>
                 <div class="mt-3">
-                    <a href="add_beneficiary.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?><?php echo $selected_parent_leader_id ? ($selected_barangay_id ? '&' : '?').'parent_leader_id='.$selected_parent_leader_id : ''; ?>" class="btn btn-success">
+                    <!--<a href="add_beneficiary.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?><?php echo $selected_parent_leader_id ? ($selected_barangay_id ? '&' : '?').'parent_leader_id='.$selected_parent_leader_id : ''; ?>" class="btn btn-success">
                         <i class="bi bi-person-plus"></i> Add New Beneficiary
-                    </a>
+                    </a>-->
                     <a href="beneficiaries.php" class="btn btn-outline-secondary ms-2">
                         <i class="bi bi-arrow-repeat"></i> Clear Filters
                     </a>

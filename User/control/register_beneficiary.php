@@ -212,7 +212,6 @@ try {
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
                         <li><a class="dropdown-item" href="../profile.php"><i class="bi bi-person me-2"></i> My Profile</a></li>
-                        <li><a class="dropdown-item" href="../settings.php"><i class="bi bi-gear me-2"></i> Settings</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="../control/logout.php"><i class="bi bi-box-arrow-right me-2"></i> Logout</a></li>
                     </ul>
@@ -256,11 +255,6 @@ try {
                     <li class="nav-item">
                         <a class="nav-link" href="../reports.php">
                             <i class="bi bi-file-earmark-text"></i> Reports
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="../settings.php">
-                            <i class="bi bi-gear"></i> Settings
                         </a>
                     </li>
                 </ul>

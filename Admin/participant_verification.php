@@ -290,11 +290,6 @@ try {
                 </a>
             </li>-->
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'settings' ? 'active' : ''; ?>" href="#<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
-                    <i class="bi bi-gear"></i> System Settings
-                </a>
-            </li>
-            <li class="nav-item">
                 <a class="nav-link" href="../admin.php">
                     <i class="bi bi-box-arrow-right"></i> Back
                 </a>

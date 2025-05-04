@@ -12,6 +12,35 @@ $activity = null;
 $error_message = '';
 $success_message = '';
 
+// Handle marking participant as completed
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['mark_completed'])) {
+    try {
+        $db = new Database();
+        $user_id = intval($_POST['user_id']);
+        $activity_id = intval($_POST['activity_id']);
+        
+        // Check if record exists in activity_participants
+        $checkSql = "SELECT * FROM activity_participants WHERE activity_id = ? AND user_id = ?";
+        $existing = $db->fetchOne($checkSql, [$activity_id, $user_id]);
+        
+        if ($existing) {
+            // Update existing record
+            $updateSql = "UPDATE activity_participants SET attended = 1, attendance_date = NOW() WHERE activity_id = ? AND user_id = ?";
+            $db->execute($updateSql, [$activity_id, $user_id]);
+        } else {
+            // Insert new record
+            $insertSql = "INSERT INTO activity_participants (activity_id, user_id, status, attended, attendance_date, created_at) 
+                         VALUES (?, ?, 'yes', 1, NOW(), NOW())";
+            $db->execute($insertSql, [$activity_id, $user_id]);
+        }
+        
+        $success_message = "Participant marked as completed successfully.";
+        
+    } catch (Exception $e) {
+        $error_message = "Error marking participant as completed: " . $e->getMessage();
+    }
+}
+
 // Fetch activity details and submissions
 try {
     $db = new Database();
@@ -32,17 +61,21 @@ try {
         $error_message = "Activity not found.";
     }
     
-    // Fetch submissions for this activity
+    // Fetch submissions for this activity with attendance status
     $submissions = [];
     if ($activity_id) {
         $submissionsQuery = "SELECT s.*, 
                             CONCAT(u.firstname, ' ', u.lastname) as user_name,
                             u.email,
+                            u.user_id,
                             (SELECT name FROM barangays WHERE barangay_id = 
                                 (SELECT barangay_id FROM beneficiaries WHERE user_id = s.user_id LIMIT 1)
-                            ) as barangay_name
+                            ) as barangay_name,
+                            ap.attended,
+                            ap.attendance_date
                         FROM activity_submissions s
                         JOIN users u ON s.user_id = u.user_id
+                        LEFT JOIN activity_participants ap ON s.activity_id = ap.activity_id AND s.user_id = ap.user_id
                         WHERE s.activity_id = ?
                         ORDER BY s.created_at DESC";
         
@@ -63,12 +96,17 @@ try {
     $attendanceStatusCounts = [
         'yes' => 0,
         'maybe' => 0,
-        'no' => 0
+        'no' => 0,
+        'completed' => 0
     ];
     
     foreach ($submissions as $submission) {
         $responseTypeCounts[$submission['response_type']]++;
-        $attendanceStatusCounts[$submission['attendance_status']]++;
+        if ($submission['attended'] == 1) {
+            $attendanceStatusCounts['completed']++;
+        } else {
+            $attendanceStatusCounts[$submission['attendance_status']]++;
+        }
     }
     
 } catch (Exception $e) {
@@ -165,6 +203,26 @@ $activity_types = [
         .activity-card .card-header {
             border-radius: 10px 10px 0 0 !important;
         }
+        .avatar-circle {
+            width: 40px;
+            height: 40px;
+            background-color: #6c757d;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .avatar-initial {
+            font-size: 1.2rem;
+        }
+
+        .table th {
+            font-weight: 600;
+            color: #495057;
+        }
     </style>
 </head>
 <body>
@@ -185,24 +243,24 @@ $activity_types = [
     
     <!-- Main Content -->
     <div class="main-content">
-        <div class="container-fluid">
-            <!-- Error or Success Messages -->
-            <?php if (!empty($error_message)): ?>
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="bi bi-exclamation-triangle me-2"></i> <?php echo $error_message; ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            <?php endif; ?>
+    <div class="container-fluid">
+        <!-- Error or Success Messages -->
+        <?php if (!empty($error_message)): ?>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle me-2"></i> <?php echo $error_message; ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        <?php endif; ?>
 
-            <?php if (!empty($success_message)): ?>
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    <i class="bi bi-check-circle me-2"></i> <?php echo $success_message; ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            <?php endif; ?>
+        <?php if (!empty($success_message)): ?>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle me-2"></i> <?php echo $success_message; ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        <?php endif; ?>
 
-            <!-- Activity Details Card -->
-            <?php if ($activity): ?>
+        <!-- Activity Details Card -->
+        <?php if ($activity): ?>
             <div class="card mb-4 activity-card">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h3 class="mb-0"><?php echo htmlspecialchars($activity['title']); ?></h3>
@@ -216,6 +274,7 @@ $activity_types = [
                     </div>
                 </div>
                 <div class="card-body">
+                    <!-- Activity details content -->
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
@@ -308,10 +367,10 @@ $activity_types = [
                                 <?php foreach ($attachments['images'] as $image): ?>
                                 <div class="me-3 mb-3">
                                     <img src="../../uploads/activities/images/<?php echo htmlspecialchars($image); ?>" 
-                                         class="attachment-thumbnail" 
-                                         data-bs-toggle="modal" 
-                                         data-bs-target="#imageModal"
-                                         data-image-src="../../uploads/activities/images/<?php echo htmlspecialchars($image); ?>">
+                                        class="attachment-thumbnail" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#imageModal"
+                                        data-image-src="../../uploads/activities/images/<?php echo htmlspecialchars($image); ?>">
                                 </div>
                                 <?php endforeach; ?>
                             </div>
@@ -338,7 +397,7 @@ $activity_types = [
                                     </div>
                                     <div class="small text-truncate" style="max-width: 100px;"><?php echo htmlspecialchars($document); ?></div>
                                     <a href="../../uploads/activities/documents/<?php echo htmlspecialchars($document); ?>" 
-                                       class="btn btn-sm btn-outline-primary mt-1" download>
+                                    class="btn btn-sm btn-outline-primary mt-1" download>
                                         <i class="bi bi-download me-1"></i> Download
                                     </a>
                                 </div>
@@ -348,118 +407,231 @@ $activity_types = [
                         <?php endif; ?>
                     </div>
                     <?php endif; ?>
-
-                    <div class="mb-3 mt-4 border-top pt-4">
-                    <h5 class="text-muted">Activity Submissions (<?php echo $submissionCount; ?>)</h5>
-                    
-                    <?php if ($submissionCount > 0): ?>
-                        <!-- Summary Statistics -->
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <div class="card border-0 bg-light">
-                                    <div class="card-body">
-                                        <h6 class="card-title">Response Types</h6>
-                                        <div class="d-flex">
-                                            <div class="me-3">
-                                                <span class="badge bg-success"><?php echo $responseTypeCounts['participation']; ?></span>
-                                                <span class="small ms-1">Participation</span>
+                </div>
+            </div>
+            
+            <!-- Activity Submissions and Participants Row -->
+            <div class="row">
+                <!-- Activity Submissions Column -->
+                <div class="col-lg-8">
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0 text-primary">
+                                <i class="bi bi-file-earmark-text-fill me-2"></i>Activity Submissions (<?php echo $submissionCount; ?>)
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <?php if ($submissionCount > 0): ?>
+                                <!-- Summary Statistics -->
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <div class="card border-0 bg-light">
+                                            <div class="card-body">
+                                                <h6 class="card-title">Response Types</h6>
+                                                <div class="d-flex">
+                                                    <div class="me-3">
+                                                        <span class="badge bg-success"><?php echo $responseTypeCounts['participation']; ?></span>
+                                                        <span class="small ms-1">Participation</span>
+                                                    </div>
+                                                    <div class="me-3">
+                                                        <span class="badge bg-info"><?php echo $responseTypeCounts['feedback']; ?></span>
+                                                        <span class="small ms-1">Feedback</span>
+                                                    </div>
+                                                    <div>
+                                                        <span class="badge bg-warning"><?php echo $responseTypeCounts['question']; ?></span>
+                                                        <span class="small ms-1">Questions</span>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div class="me-3">
-                                                <span class="badge bg-info"><?php echo $responseTypeCounts['feedback']; ?></span>
-                                                <span class="small ms-1">Feedback</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <div class="card border-0 bg-light">
+                                            <div class="card-body">
+                                                <h6 class="card-title">Attendance Status</h6>
+                                                <div class="d-flex">
+                                                    <div class="me-3">
+                                                        <span class="badge bg-success"><?php echo $attendanceStatusCounts['yes']; ?></span>
+                                                        <span class="small ms-1">Will Attend</span>
+                                                    </div>
+                                                    <div class="me-3">
+                                                        <span class="badge bg-danger"><?php echo $attendanceStatusCounts['no']; ?></span>
+                                                        <span class="small ms-1">Cannot Attend</span>
+                                                    </div>
+                                                    <div>
+                                                        <span class="badge bg-primary"><?php echo $attendanceStatusCounts['completed']; ?></span>
+                                                        <span class="small ms-1">Completed</span>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <span class="badge bg-warning"><?php echo $responseTypeCounts['question']; ?></span>
-                                                <span class="small ms-1">Questions</span>
-                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Submissions Table -->
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover border">
+                                        <thead class="table-primary">
+                                            <tr>
+                                                <th>User</th>
+                                                <th>Response Type</th>
+                                                <th>Attendance</th>
+                                                <th>Date Submitted</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($submissions as $submission): ?>
+                                            <tr>
+                                                <td>
+                                                    <div><?php echo htmlspecialchars($submission['user_name']); ?></div>
+                                                    <small class="text-muted"><?php echo htmlspecialchars($submission['email']); ?></small>
+                                                </td>
+                                                <td>
+                                                    <?php if ($submission['response_type'] == 'participation'): ?>
+                                                        <span class="badge bg-success">Participation</span>
+                                                    <?php elseif ($submission['response_type'] == 'feedback'): ?>
+                                                        <span class="badge bg-info">Feedback</span>
+                                                    <?php else: ?>
+                                                        <span class="badge bg-warning">Question</span>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td>
+                                                    <?php if ($submission['attended'] == 1): ?>
+                                                        <span class="badge bg-primary">
+                                                            <i class="bi bi-check-circle-fill me-1"></i>Completed
+                                                        </span>
+                                                        <div class="small text-muted">
+                                                            <?php echo date('M d, Y', strtotime($submission['attendance_date'])); ?>
+                                                        </div>
+                                                    <?php elseif ($submission['attendance_status'] == 'yes'): ?>
+                                                        <span class="badge bg-success">Will Attend</span>
+                                                    <?php elseif ($submission['attendance_status'] == 'maybe'): ?>
+                                                        <span class="badge bg-warning text-dark">Maybe</span>
+                                                    <?php else: ?>
+                                                        <span class="badge bg-danger">Cannot Attend</span>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td><?php echo date('M d, Y g:i A', strtotime($submission['created_at'])); ?></td>
+                                                <td>
+                                                    <button type="button" class="btn btn-sm btn-primary me-1" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#viewSubmissionModal"
+                                                            data-submission-id="<?php echo $submission['submission_id']; ?>"
+                                                            data-user-name="<?php echo htmlspecialchars($submission['user_name']); ?>"
+                                                            data-comments="<?php echo htmlspecialchars($submission['comments']); ?>"
+                                                            data-has-file="<?php echo !empty($submission['file_path']) ? 'true' : 'false'; ?>"
+                                                            data-file-path="<?php echo htmlspecialchars($submission['file_path'] ?? ''); ?>"
+                                                            data-file-name="<?php echo htmlspecialchars($submission['file_name'] ?? ''); ?>">
+                                                        <i class="bi bi-eye"></i> View
+                                                    </button>
+                                                    
+                                                    <?php if ($submission['attended'] != 1 && $submission['attendance_status'] == 'yes'): ?>
+                                                    <form method="POST" style="display: inline;">
+                                                        <input type="hidden" name="user_id" value="<?php echo $submission['user_id']; ?>">
+                                                        <input type="hidden" name="activity_id" value="<?php echo $activity_id; ?>">
+                                                        <button type="submit" name="mark_completed" class="btn btn-sm btn-success"
+                                                                onclick="return confirm('Mark this participant as completed?');">
+                                                            <i class="bi bi-check-lg"></i> Mark Completed
+                                                        </button>
+                                                    </form>
+                                                    <?php endif; ?>
+                                                </td>
+                                            </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            <?php else: ?>
+                                <div class="alert alert-info mb-0">
+                                    <i class="bi bi-info-circle me-2"></i> No submissions have been received for this activity yet.
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Activity Participants Column -->
+                <div class="col-lg-4">
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0 text-primary">
+                                <i class="bi bi-people-fill me-2"></i>Activity Participants
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <?php
+                            // Fetch all participants for this activity
+                            $participantsSql = "SELECT u.firstname, u.lastname, u.email, ap.attended, ap.attendance_date, ap.created_at 
+                                            FROM activity_participants ap 
+                                            JOIN users u ON ap.user_id = u.user_id 
+                                            WHERE ap.activity_id = ? 
+                                            ORDER BY ap.created_at DESC";
+                            $participants = $db->fetchAll($participantsSql, [$activity_id]);
+                            
+                            $totalParticipants = count($participants);
+                            $completedParticipants = 0;
+                            
+                            foreach ($participants as $participant) {
+                                if ($participant['attended'] == 1) {
+                                    $completedParticipants++;
+                                }
+                            }
+                            ?>
+                            
+                            <div class="card border-0 bg-light mb-3">
+                                <div class="card-body">
+                                    <h6 class="card-title">Participation Summary</h6>
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <span class="fs-4 fw-bold text-primary"><?php echo $totalParticipants; ?></span>
+                                            <span class="text-muted ms-2">Total</span>
+                                        </div>
+                                        <div>
+                                            <span class="fs-4 fw-bold text-success"><?php echo $completedParticipants; ?></span>
+                                            <span class="text-muted ms-2">Completed</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                             
-                            <div class="col-md-6">
-                                <div class="card border-0 bg-light">
-                                    <div class="card-body">
-                                        <h6 class="card-title">Attendance Status</h6>
-                                        <div class="d-flex">
-                                            <div class="me-3">
-                                                <span class="badge bg-success"><?php echo $attendanceStatusCounts['yes']; ?></span>
-                                                <span class="small ms-1">Will Attend</span>
+                            <?php if ($totalParticipants > 0): ?>
+                                <div class="participants-list" style="max-height: 500px; overflow-y: auto;">
+                                    <?php foreach ($participants as $participant): ?>
+                                    <div class="participant-item d-flex align-items-center p-2 border-bottom">
+                                        <div class="avatar-circle me-3" style="width: 40px; height: 40px; background-color: #6c757d; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                                            <span class="avatar-initial"><?php echo strtoupper(substr($participant['firstname'], 0, 1)); ?></span>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <div class="fw-bold">
+                                                <?php echo htmlspecialchars($participant['firstname'] . ' ' . $participant['lastname']); ?>
                                             </div>
-                                            <div>
-                                                <span class="badge bg-danger"><?php echo $attendanceStatusCounts['no']; ?></span>
-                                                <span class="small ms-1">Cannot Attend</span>
-                                            </div>
+                                            <small class="text-muted">
+                                                <?php echo htmlspecialchars($participant['email']); ?>
+                                            </small>
+                                        </div>
+                                        <div>
+                                            <?php if ($participant['attended'] == 1): ?>
+                                                <span class="badge bg-success">
+                                                    <i class="bi bi-check-circle-fill"></i>
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="badge bg-warning">
+                                                    <i class="bi bi-clock-fill"></i>
+                                                </span>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Submissions Table -->
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover border">
-                                <thead class="table-primary">
-                                    <tr>
-                                        <th>User</th>
-                                        <th>Response Type</th>
-                                        <th>Attendance</th>
-                                        <th>Barangay</th>
-                                        <th>Date Submitted</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($submissions as $submission): ?>
-                                    <tr>
-                                        <td>
-                                            <div><?php echo htmlspecialchars($submission['user_name']); ?></div>
-                                            <small class="text-muted"><?php echo htmlspecialchars($submission['email']); ?></small>
-                                        </td>
-                                        <td>
-                                            <?php if ($submission['response_type'] == 'participation'): ?>
-                                                <span class="badge bg-success">Participation</span>
-                                            <?php elseif ($submission['response_type'] == 'feedback'): ?>
-                                                <span class="badge bg-info">Feedback</span>
-                                            <?php else: ?>
-                                                <span class="badge bg-warning">Question</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td>
-                                            <?php if ($submission['attendance_status'] == 'yes'): ?>
-                                                <span class="badge bg-success">Will Attend</span>
-                                            <?php elseif ($submission['attendance_status'] == 'maybe'): ?>
-                                                <span class="badge bg-warning text-dark">Maybe</span>
-                                            <?php else: ?>
-                                                <span class="badge bg-danger">Cannot Attend</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td><?php echo $submission['barangay_name'] ? htmlspecialchars($submission['barangay_name']) : 'N/A'; ?></td>
-                                        <td><?php echo date('M d, Y g:i A', strtotime($submission['created_at'])); ?></td>
-                                        <td>
-                                            <button type="button" class="btn btn-sm btn-primary" 
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#viewSubmissionModal"
-                                                    data-submission-id="<?php echo $submission['submission_id']; ?>"
-                                                    data-user-name="<?php echo htmlspecialchars($submission['user_name']); ?>"
-                                                    data-comments="<?php echo htmlspecialchars($submission['comments']); ?>"
-                                                    data-has-file="<?php echo !empty($submission['file_path']) ? 'true' : 'false'; ?>"
-                                                    data-file-path="<?php echo htmlspecialchars($submission['file_path'] ?? ''); ?>"
-                                                    data-file-name="<?php echo htmlspecialchars($submission['file_name'] ?? ''); ?>">
-                                                <i class="bi bi-eye"></i> View
-                                            </button>
-                                        </td>
-                                    </tr>
                                     <?php endforeach; ?>
-                                </tbody>
-                            </table>
+                                </div>
+                            <?php else: ?>
+                                <div class="alert alert-info mb-0">
+                                    <i class="bi bi-info-circle me-2"></i> No participants have joined this activity yet.
+                                </div>
+                            <?php endif; ?>
                         </div>
-                    <?php else: ?>
-                        <div class="alert alert-info">
-                            <i class="bi bi-info-circle me-2"></i> No submissions have been received for this activity yet.
-                        </div>
-                    <?php endif; ?>
-                </div>
+                    </div>
                 </div>
             </div>
             <?php endif; ?>
@@ -533,8 +705,10 @@ $activity_types = [
                     
                     <div id="submissionFileContainer" class="mb-3 d-none">
                         <h6>Attachment</h6>
+                        <div id="submissionFilePreview" class="mb-3">
+                            <!-- Image or file icon will be inserted here -->
+                        </div>
                         <div class="d-flex align-items-center">
-                            <i class="bi bi-file-earmark me-2 fs-4"></i>
                             <span id="submissionFileName"></span>
                             <a id="submissionFileDownload" href="#" class="btn btn-sm btn-outline-primary ms-3" download>
                                 <i class="bi bi-download me-1"></i> Download
@@ -591,17 +765,49 @@ $activity_types = [
                     
                     // Handle file display
                     const fileContainer = document.getElementById('submissionFileContainer');
+                    const filePreview = document.getElementById('submissionFilePreview');
+                    
                     if (hasFile && filePath) {
                         fileContainer.classList.remove('d-none');
                         document.getElementById('submissionFileName').textContent = fileName || filePath.split('/').pop();
-                        document.getElementById('submissionFileDownload').href = filePath;
+                        document.getElementById('submissionFileDownload').href = '../../' + filePath;
+                        
+                        // Check if file is an image
+                        const fileExtension = filePath.split('.').pop().toLowerCase();
+                        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
+                        
+                        if (imageExtensions.includes(fileExtension)) {
+                            // Display image preview
+                            filePreview.innerHTML = `<img src="../../${filePath}" alt="Attachment" class="img-fluid" style="max-height: 400px; border-radius: 8px;">`;
+                        } else {
+                            // Display file icon for non-image files
+                            let iconClass = 'bi-file-earmark';
+                            let iconColor = 'text-secondary';
+                            
+                            if (fileExtension === 'pdf') {
+                                iconClass = 'bi-file-earmark-pdf';
+                                iconColor = 'text-danger';
+                            } else if (['doc', 'docx'].includes(fileExtension)) {
+                                iconClass = 'bi-file-earmark-word';
+                                iconColor = 'text-primary';
+                            } else if (['xls', 'xlsx'].includes(fileExtension)) {
+                                iconClass = 'bi-file-earmark-excel';
+                                iconColor = 'text-success';
+                            }
+                            
+                            filePreview.innerHTML = `
+                                <div class="text-center">
+                                    <i class="bi ${iconClass} ${iconColor}" style="font-size: 5rem;"></i>
+                                    <p class="mt-2 mb-0">${fileName || 'Document'}</p>
+                                </div>
+                            `;
+                        }
                     } else {
                         fileContainer.classList.add('d-none');
                     }
                 });
             }
-    
         });
-    </script>
+   </script>
 </body>
 </html>
