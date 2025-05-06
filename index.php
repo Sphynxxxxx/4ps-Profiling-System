@@ -28,7 +28,7 @@
             
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto me-lg-4">
-                    <li class="nav-item">
+                    <!--<li class="nav-item">
                         <a class="nav-link active" href="index.php">Home</a>
                     </li>
                     <li class="nav-item">
@@ -39,7 +39,7 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="contact.php">Contact</a>
-                    </li>
+                    </li>-->
                 </ul>
                 
                 <div class="auth-buttons d-flex">

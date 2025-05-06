@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: May 04, 2025 at 09:09 PM
+-- Generation Time: May 06, 2025 at 08:37 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -60,9 +60,7 @@ CREATE TABLE `activity_logs` (
 --
 
 INSERT INTO `activity_logs` (`log_id`, `user_id`, `activity_type`, `description`, `created_at`) VALUES
-(173, 30, 'CREATE_ACTIVITY', 'Created new activity: activity 2 for barangay ID: 11', '2025-05-05 02:59:36'),
-(174, 30, 'DELETE_ACTIVITY', 'Deleted activity ID: 45', '2025-05-05 03:01:33'),
-(175, 30, 'CREATE_ACTIVITY', 'Created new activity: 2222 for barangay ID: 11', '2025-05-05 03:01:57');
+(177, 1, 'verification', 'Approved user ID 31 (not added to beneficiaries)', '2025-05-05 03:26:43');
 
 -- --------------------------------------------------------
 
@@ -226,7 +224,7 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`user_id`, `email`, `password`, `firstname`, `middle_initial`, `lastname`, `date_of_birth`, `gender`, `civil_status`, `phone_number`, `region`, `province`, `city`, `household_members`, `dependants`, `family_head`, `occupation`, `household_income`, `income_source`, `valid_id_path`, `proof_of_residency_path`, `profile_image`, `account_status`, `role`, `created_at`, `updated_at`, `last_login`, `barangay`) VALUES
-(30, 'larrydenverbiaco@gmail.com', '$2y$10$ZStTJqouWV36wAaFeAwWd.wBLNXargu5jeOJC7Xebv9s/vVqgMj3S', 'larry', 'G', 'denver', '1999-05-05', 'male', 'MARRIED', '09123456789', '6', 'pavia', 'iloilo', 5, 2, 'Roger Cruz', 'Web Design', 10000.00, 'EMPLOYMENT', 'uploads/ids/ID_6817aa117c600.png', 'uploads/residency/PROOF_6817aa117c655.jpg', 'uploads/profiles/profile_30_1746382083.png', 'active', 'resident', '2025-05-04 17:55:29', '2025-05-04 18:08:03', '2025-05-04 17:55:55', '11');
+(31, 'larrydenverbiaco@gmail.com', '$2y$10$mGHT/QLLR6RxrEcONVIAu.PC07ckIumm51XiB9Jtaxc.NbOGU5Hf2', 'Larry', 'G', 'denverr', '1999-05-05', 'male', 'SINGLE', '09123456789', '6', 'pavia', 'iloilo', 5, 2, 'Roger Cruz', 'Web Design', 11111.00, 'EMPLOYMENT', 'uploads/ids/ID_6817bf6b1e306.jpg', 'uploads/residency/PROOF_6817bf6b1e373.jpg', NULL, 'active', 'resident', '2025-05-04 19:26:35', '2025-05-04 19:26:43', NULL, '11');
 
 -- --------------------------------------------------------
 
@@ -338,13 +336,13 @@ ALTER TABLE `verification_codes`
 -- AUTO_INCREMENT for table `activities`
 --
 ALTER TABLE `activities`
-  MODIFY `activity_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=47;
+  MODIFY `activity_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=48;
 
 --
 -- AUTO_INCREMENT for table `activity_logs`
 --
 ALTER TABLE `activity_logs`
-  MODIFY `log_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=176;
+  MODIFY `log_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=178;
 
 --
 -- AUTO_INCREMENT for table `activity_participants`
@@ -386,7 +384,7 @@ ALTER TABLE `messages`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=31;
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
 
 --
 -- AUTO_INCREMENT for table `verification_codes`
