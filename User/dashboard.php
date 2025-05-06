@@ -470,10 +470,10 @@ function getActivityStatistics($db, $userId, $userRole, $barangayId = null) {
             <div class="d-flex align-items-center">
                 <div class="position-relative me-3">
                     <a href="#" class="text-white">
-                        <i class="bi bi-bell-fill fs-5"></i>
+                        <!--<i class="bi bi-bell-fill fs-5"></i>
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge">
                             <?php echo count($activities); ?>
-                        </span>
+                        </span>-->
                     </a>
                 </div>
                 <div class="dropdown">

@@ -206,7 +206,7 @@ class Database {
 
         
     public function isConnected() {
-        return $this->connection !== null;
+        return $this->conn !== null && !$this->conn->connect_error;
     }
 }
 
