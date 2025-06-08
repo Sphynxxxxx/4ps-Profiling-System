@@ -121,9 +121,9 @@
         <div class="container">
             <div class="row align-items-center">
                 <div class="col-lg-6 mb-4 mb-lg-0">
-                    <!--<div class="about-image">
-                        <img src="assets/about-image.jpg" alt="About 4P's Program">
-                    </div>-->
+                    <div class="about-image">
+                        <img src="User/assets/4ps-logo.png" alt="About 4P's Program">
+                    </div>
                 </div>
                 
                 <div class="col-lg-6">
