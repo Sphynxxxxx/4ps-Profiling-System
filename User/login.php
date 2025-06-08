@@ -246,7 +246,7 @@ if (isset($_GET['message']) && isset($_GET['type']) && $_GET['type'] == 'success
                 
                 <button type="submit" class="btn-login">LOGIN</button>
                 
-                <a href="forgot_password.php" class="forgotten-password">Forgot Password?</a>
+                <!--<a href="forgot_password.php" class="forgotten-password">Forgot Password?</a>-->
                 
                 <div class="register-link">
                     Don't have an account? <a href="registration.php">Register Now</a>
