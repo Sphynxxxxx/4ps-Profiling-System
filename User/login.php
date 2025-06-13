@@ -176,7 +176,41 @@ if (isset($_GET['message']) && isset($_GET['type']) && $_GET['type'] == 'success
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="css/login_register.css" rel="stylesheet">
-
+    <style>
+        .password-toggle {
+            position: relative;
+        }
+        
+        .password-toggle-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #6c757d;
+            cursor: pointer;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        
+        .password-toggle-btn:hover {
+            color: #495057;
+        }
+        
+        .password-toggle-btn i {
+            font-size: 14px;
+        }
+        
+        .password-input {
+            padding-right: 40px !important;
+        }
+    </style>
 </head>
 <body>
     <!-- Navigation -->
@@ -238,7 +272,12 @@ if (isset($_GET['message']) && isset($_GET['type']) && $_GET['type'] == 'success
                 
                 <div class="mb-3">
                     <label for="password" class="form-label">Password</label>
-                    <input type="password" class="form-control <?php echo (!empty($errors['password'])) ? 'is-invalid' : ''; ?>" id="password" name="password" placeholder="Enter your password">
+                    <div class="password-toggle">
+                        <input type="password" class="form-control password-input <?php echo (!empty($errors['password'])) ? 'is-invalid' : ''; ?>" id="password" name="password" placeholder="Enter your password">
+                        <button type="button" class="password-toggle-btn" id="togglePassword" title="Show/Hide Password">
+                            <i class="fas fa-eye" id="toggleIcon"></i>
+                        </button>
+                    </div>
                     <?php if(!empty($errors['password'])): ?>
                         <div class="invalid-feedback"><?php echo $errors['password']; ?></div>
                     <?php endif; ?>
@@ -256,5 +295,36 @@ if (isset($_GET['message']) && isset($_GET['type']) && $_GET['type'] == 'success
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const togglePassword = document.getElementById('togglePassword');
+            const passwordField = document.getElementById('password');
+            const toggleIcon = document.getElementById('toggleIcon');
+            
+            if (togglePassword && passwordField && toggleIcon) {
+                togglePassword.addEventListener('click', function() {
+                    // Toggle the type attribute
+                    const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
+                    passwordField.setAttribute('type', type);
+                    
+                    // Toggle the eye icon
+                    if (type === 'password') {
+                        toggleIcon.classList.remove('fa-eye-slash');
+                        toggleIcon.classList.add('fa-eye');
+                        togglePassword.setAttribute('title', 'Show Password');
+                    } else {
+                        toggleIcon.classList.remove('fa-eye');
+                        toggleIcon.classList.add('fa-eye-slash');
+                        togglePassword.setAttribute('title', 'Hide Password');
+                    }
+                });
+            }
+            
+            // Prevent form submission when clicking the toggle button
+            togglePassword.addEventListener('click', function(e) {
+                e.preventDefault();
+            });
+        });
+    </script>
 </body>
 </html>
