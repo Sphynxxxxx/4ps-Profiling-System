@@ -394,11 +394,11 @@ try {
                         </div>
                     </form>
                 </div>
-                <div class="col-md-6 text-end">
+                <!--<div class="col-md-6 text-end">
                     <a href="export_parent_leaders.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?><?php echo !empty($search) ? '&search='.$search : ''; ?>" class="btn btn-outline-success">
                         <i class="bi bi-file-excel me-1"></i> Export to Excel
                     </a>
-                </div>
+                </div>-->
             </div>
         </div>
         

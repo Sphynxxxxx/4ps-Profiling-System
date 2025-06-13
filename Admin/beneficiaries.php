@@ -510,11 +510,11 @@ try {
                         </div>
                     </form>
                 </div>
-                <div class="col-md-6 text-end">
+                <!--<div class="col-md-6 text-end">
                     <a href="export_beneficiaries.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?><?php echo $selected_parent_leader_id ? ($selected_barangay_id ? '&' : '?').'parent_leader_id='.$selected_parent_leader_id : ''; ?><?php echo !empty($search) ? (($selected_barangay_id || $selected_parent_leader_id) ? '&' : '?').'search='.$search : ''; ?>" class="btn btn-outline-success">
                         <i class="bi bi-file-excel me-1"></i> Export to Excel
                     </a>
-                </div>
+                </div>-->
             </div>
         </div>
         

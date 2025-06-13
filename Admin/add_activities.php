@@ -120,7 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // Prepare attachment JSON
         $attachments_json = json_encode($attachments);
 
-        // Insert activity into database
+        // Insert activity into database (removed created_by field)
         $insertQuery = "INSERT INTO activities (
             title, 
             description, 
@@ -128,9 +128,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             start_date, 
             end_date, 
             attachments, 
-            barangay_id, 
-            created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+            barangay_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)";
 
         $params = [
             $title, 
@@ -139,18 +138,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $start_date, 
             $end_date, 
             $attachments_json, 
-            $post_barangay_id, // Use the validated barangay_id 
-            $_SESSION['user_id']
+            $post_barangay_id
         ];
 
         $activity_id = $db->insertAndGetId($insertQuery, $params);
 
-        // Log activity
-        logActivity(
-            $_SESSION['user_id'], 
-            'CREATE_ACTIVITY', 
-            "Created new activity: $title for barangay ID: $post_barangay_id"
-        );
+        // Log activity (made user_id optional)
+        if (isset($_SESSION['user_id']) && function_exists('logActivity')) {
+            logActivity(
+                $_SESSION['user_id'], 
+                'CREATE_ACTIVITY', 
+                "Created new activity: $title for barangay ID: $post_barangay_id"
+            );
+        }
 
         // Close database connection
         $db->closeConnection();
@@ -178,13 +178,12 @@ try {
     $error_message = "Error fetching barangays: " . $e->getMessage();
 }
 
-// Fetch activities for the selected barangay
+// Fetch activities for the selected barangay (removed creator join and field)
 $activities = [];
 $activities_query_params = [];
-$activities_query = "SELECT a.*, b.name as barangay_name, CONCAT(u.firstname, ' ', u.lastname) as creator_name 
+$activities_query = "SELECT a.*, b.name as barangay_name 
                     FROM activities a
                     LEFT JOIN barangays b ON a.barangay_id = b.barangay_id
-                    LEFT JOIN users u ON a.created_by = u.user_id
                     WHERE 1=1 ";
 
 if ($selected_barangay_id) {
@@ -229,13 +228,13 @@ foreach ($activities as $activity) {
         $activity_type_counts['other']++;
     }
     
-    // Count by status
+    // Count by status - handle null dates
     $start_date = $activity['start_date'];
     $end_date = $activity['end_date'];
     
-    if ($today < $start_date) {
+    if ($start_date && $today < $start_date) {
         $upcoming_activities++;
-    } elseif ($today > $end_date) {
+    } elseif ($end_date && $today > $end_date) {
         $completed_activities++;
     } else {
         $active_activities++;
@@ -260,7 +259,14 @@ $activity_type_styles = [
     'other' => 'secondary'
 ];
 
+// Initialize statistics variables
+$pending_verifications = 0;
+$upcoming_events = 0;
+$unread_messages = 0;
+
 try {
+    $db = new Database();
+    
     // Get pending verifications count
     $pendingVerificationsQuery = $selected_barangay_id 
         ? "SELECT COUNT(*) as pending FROM users WHERE account_status = 'pending' AND role = 'resident' AND barangay = ?"
@@ -284,6 +290,8 @@ try {
     $params = $selected_barangay_id ? [$selected_barangay_id, $selected_barangay_id] : [];
     $result = $params ? $db->fetchOne($unreadMessagesQuery, $params) : $db->fetchOne($unreadMessagesQuery);
     $unread_messages = $result ? $result['unread'] : 0;
+    
+    $db->closeConnection();
 } catch (Exception $e) {
     // Set defaults if there's a database error
     $pending_verifications = 0;
@@ -349,12 +357,12 @@ try {
     <div class="sidebar" id="sidebar">
         <ul class="nav flex-column">
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'dashboard' ? 'active' : ''; ?>" href="admin_dashboard.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
+                <a class="nav-link <?php echo (isset($current_page) && $current_page == 'dashboard') ? 'active' : ''; ?>" href="admin_dashboard.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-speedometer2"></i> Dashboard
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'verification' ? 'active' : ''; ?>" href="participant_verification.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
+                <a class="nav-link <?php echo (isset($current_page) && $current_page == 'verification') ? 'active' : ''; ?>" href="participant_verification.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-person-check"></i> Parent Leader Verification
                     <?php if($pending_verifications > 0): ?>
                     <span class="badge bg-danger rounded-pill ms-auto"><?php echo $pending_verifications; ?></span>
@@ -362,22 +370,22 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'parent_leaders' ? 'active' : ''; ?>" href="parent_leaders.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
+                <a class="nav-link <?php echo (isset($current_page) && $current_page == 'parent_leaders') ? 'active' : ''; ?>" href="parent_leaders.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-people"></i> List of Parent Leaders
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'beneficiaries' ? 'active' : ''; ?>" href="beneficiaries.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
+                <a class="nav-link <?php echo (isset($current_page) && $current_page == 'beneficiaries') ? 'active' : ''; ?>" href="beneficiaries.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-people"></i> Beneficiaries
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link active <?php echo $current_page == 'activities' ? 'active' : ''; ?>" href="add_activities.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
+                <a class="nav-link active" href="add_activities.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-arrow-repeat"></i> Activities
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'calendar' ? 'active' : ''; ?>" href="calendar.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
+                <a class="nav-link <?php echo (isset($current_page) && $current_page == 'calendar') ? 'active' : ''; ?>" href="calendar.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-calendar3"></i> Calendar
                     <?php if($upcoming_events > 0): ?>
                     <span class="badge bg-primary rounded-pill ms-auto"><?php echo $upcoming_events; ?></span>
@@ -385,18 +393,13 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'messages' ? 'active' : ''; ?>" href="messages.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
+                <a class="nav-link <?php echo (isset($current_page) && $current_page == 'messages') ? 'active' : ''; ?>" href="messages.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
                     <i class="bi bi-chat-left-text"></i> Messages
                     <?php if($unread_messages > 0): ?>
                     <span class="badge bg-danger rounded-pill ms-auto"><?php echo $unread_messages; ?></span>
                     <?php endif; ?>
                 </a>
             </li>
-            <!--<li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'reports' ? 'active' : ''; ?>" href="reports.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>">
-                    <i class="bi bi-file-earmark-text"></i> Reports
-                </a>
-            </li>-->
             <li class="nav-item">
                 <a class="nav-link" href="../admin.php">
                     <i class="bi bi-box-arrow-right"></i> Back
@@ -583,7 +586,6 @@ try {
                                             <th>Date Range</th>
                                             <th>Status</th>
                                             <th>Barangay</th>
-                                            <th>Created By</th>
                                             <th>Created On</th>
                                             <th>Actions</th>
                                         </tr>
@@ -595,9 +597,9 @@ try {
                                             $start_date = $activity['start_date'];
                                             $end_date = $activity['end_date'];
                                             
-                                            if ($today < $start_date) {
+                                            if ($start_date && $today < $start_date) {
                                                 $status = ['label' => 'Upcoming', 'class' => 'info'];
-                                            } elseif ($today > $end_date) {
+                                            } elseif ($end_date && $today > $end_date) {
                                                 $status = ['label' => 'Completed', 'class' => 'secondary'];
                                             } else {
                                                 $status = ['label' => 'Active', 'class' => 'success'];
@@ -633,7 +635,6 @@ try {
                                                     </span>
                                                 </td>
                                                 <td><?php echo htmlspecialchars($activity['barangay_name'] ?? 'N/A'); ?></td>
-                                                <td><?php echo htmlspecialchars($activity['creator_name'] ?? 'System'); ?></td>
                                                 <td><?php echo date('M d, Y', strtotime($activity['created_at'])); ?></td>
                                                 <td>
                                                     <div class="btn-group">
@@ -660,6 +661,7 @@ try {
                 </div>
             </div>
 
+            <!-- Delete Modal -->
             <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
                 <div class="modal-dialog">
                     <div class="modal-content">
@@ -689,6 +691,7 @@ try {
         </div>
     </div>
 
+    <!-- Footer -->
     <footer class="footer">
         <div class="container">
             <p>&copy; <?php echo date("Y"); ?> Department of Social Welfare and Development - 4P's Profiling System</p>
@@ -698,136 +701,160 @@ try {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Image preview functionality
-            const imageInput = document.getElementById('images');
-            const imagePreview = document.getElementById('imagePreview');
-
-            imageInput.addEventListener('change', function(event) {
-                // Clear previous previews
-                imagePreview.innerHTML = '';
-
-                // Create previews for selected images
-                for (let file of event.target.files) {
-                    const reader = new FileReader();
-                    
-                    reader.onload = function(e) {
-                        const previewItem = document.createElement('div');
-                        previewItem.classList.add('preview-item');
-                        
-                        const img = document.createElement('img');
-                        img.src = e.target.result;
-                        img.alt = 'Image Preview';
-                        
-                        const closeBtn = document.createElement('button');
-                        closeBtn.innerHTML = '&times;';
-                        closeBtn.classList.add('preview-close');
-                        closeBtn.addEventListener('click', function() {
-                            previewItem.remove();
-                            // Update file input to remove the specific file
-                            const dataTransfer = new DataTransfer();
-                            Array.from(imageInput.files)
-                                .filter(f => f.name !== file.name)
-                                .forEach(f => dataTransfer.items.add(f));
-                            imageInput.files = dataTransfer.files;
-                        });
-                        
-                        previewItem.appendChild(img);
-                        previewItem.appendChild(closeBtn);
-                        imagePreview.appendChild(previewItem);
-                    };
-                    
-                    reader.readAsDataURL(file);
-                }
-            });
-
             // Mobile menu toggle
             const menuToggle = document.getElementById('menuToggle');
             const sidebar = document.getElementById('sidebar');
             
-            menuToggle.addEventListener('click', function() {
-                sidebar.classList.toggle('show');
-            });
-            
-            // Close sidebar when clicking outside on mobile
-            document.addEventListener('click', function(event) {
-                if (window.innerWidth < 992) {
-                    const isClickInsideSidebar = sidebar.contains(event.target);
-                    const isClickOnToggle = menuToggle.contains(event.target);
-                    
-                    if (!isClickInsideSidebar && !isClickOnToggle && sidebar.classList.contains('show')) {
+            if (menuToggle && sidebar) {
+                menuToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('show');
+                });
+                
+                // Close sidebar when clicking outside on mobile
+                document.addEventListener('click', function(event) {
+                    if (window.innerWidth < 992) {
+                        const isClickInsideSidebar = sidebar.contains(event.target);
+                        const isClickOnToggle = menuToggle.contains(event.target);
+                        
+                        if (!isClickInsideSidebar && !isClickOnToggle && sidebar.classList.contains('show')) {
+                            sidebar.classList.remove('show');
+                        }
+                    }
+                });
+                
+                // Handle window resize
+                window.addEventListener('resize', function() {
+                    if (window.innerWidth >= 992) {
                         sidebar.classList.remove('show');
                     }
-                }
-            });
-            
-            // Handle window resize
-            window.addEventListener('resize', function() {
-                if (window.innerWidth >= 992) {
-                    sidebar.classList.remove('show');
-                }
-            });
+                });
+            }
+
+            // Image preview functionality
+            const imageInput = document.getElementById('images');
+            const imagePreview = document.getElementById('imagePreview');
+
+            if (imageInput && imagePreview) {
+                imageInput.addEventListener('change', function(event) {
+                    // Clear previous previews
+                    imagePreview.innerHTML = '';
+
+                    // Create previews for selected images
+                    Array.from(event.target.files).forEach((file, index) => {
+                        if (file.type.startsWith('image/')) {
+                            const reader = new FileReader();
+                            
+                            reader.onload = function(e) {
+                                const previewItem = document.createElement('div');
+                                previewItem.classList.add('preview-item');
+                                
+                                const img = document.createElement('img');
+                                img.src = e.target.result;
+                                img.alt = 'Image Preview';
+                                
+                                const closeBtn = document.createElement('button');
+                                closeBtn.innerHTML = '&times;';
+                                closeBtn.classList.add('preview-close');
+                                closeBtn.type = 'button';
+                                closeBtn.addEventListener('click', function() {
+                                    previewItem.remove();
+                                    // Remove file from input
+                                    const dataTransfer = new DataTransfer();
+                                    Array.from(imageInput.files)
+                                        .filter((f, i) => i !== index)
+                                        .forEach(f => dataTransfer.items.add(f));
+                                    imageInput.files = dataTransfer.files;
+                                });
+                                
+                                previewItem.appendChild(img);
+                                previewItem.appendChild(closeBtn);
+                                imagePreview.appendChild(previewItem);
+                            };
+                            
+                            reader.readAsDataURL(file);
+                        }
+                    });
+                });
+            }
 
             // Form validation
             const form = document.getElementById('activityForm');
-            form.addEventListener('submit', function(event) {
-                const title = document.getElementById('title');
-                const activityType = document.getElementById('activity_type');
-                const startDate = document.getElementById('start_date');
-                const endDate = document.getElementById('end_date');
-                const barangayId = document.getElementById('barangay_id');
+            if (form) {
+                form.addEventListener('submit', function(event) {
+                    const title = document.getElementById('title');
+                    const activityType = document.getElementById('activity_type');
+                    const startDate = document.getElementById('start_date');
+                    const endDate = document.getElementById('end_date');
+                    const barangayId = document.getElementById('barangay_id');
 
-                // Reset previous error styles
-                title.classList.remove('is-invalid');
-                activityType.classList.remove('is-invalid');
-                barangayId.classList.remove('is-invalid');
+                    // Reset previous error styles
+                    [title, activityType, barangayId, startDate, endDate].forEach(field => {
+                        if (field) field.classList.remove('is-invalid');
+                    });
 
-                let isValid = true;
+                    let isValid = true;
 
-                // Validate barangay selection
-                if (barangayId.value === '') {
-                    barangayId.classList.add('is-invalid');
-                    isValid = false;
-                }
-
-                // Validate title
-                if (title.value.trim() === '') {
-                    title.classList.add('is-invalid');
-                    isValid = false;
-                }
-
-                // Validate activity type
-                if (activityType.value === '') {
-                    activityType.classList.add('is-invalid');
-                    isValid = false;
-                }
-
-                // Optional: Validate date range
-                if (startDate.value && endDate.value) {
-                    const start = new Date(startDate.value);
-                    const end = new Date(endDate.value);
-                    
-                    if (start > end) {
-                        startDate.classList.add('is-invalid');
-                        endDate.classList.add('is-invalid');
-                        alert('Start date must be before or equal to end date.');
-                        event.preventDefault();
-                        return;
+                    // Validate barangay selection
+                    if (!barangayId || barangayId.value === '') {
+                        if (barangayId) barangayId.classList.add('is-invalid');
+                        isValid = false;
                     }
-                }
 
-                // Prevent form submission if validation fails
-                if (!isValid) {
-                    event.preventDefault();
-                    alert('Please fill in all required fields including selecting a barangay.');
-                }
-            });
-        });
+                    // Validate title
+                    if (!title || title.value.trim() === '') {
+                        if (title) title.classList.add('is-invalid');
+                        isValid = false;
+                    }
 
-        document.addEventListener('DOMContentLoaded', function() {
-            const forms = document.querySelectorAll('form');
+                    // Validate activity type
+                    if (!activityType || activityType.value === '') {
+                        if (activityType) activityType.classList.add('is-invalid');
+                        isValid = false;
+                    }
+
+                    // Validate date range
+                    if (startDate && endDate && startDate.value && endDate.value) {
+                        const start = new Date(startDate.value);
+                        const end = new Date(endDate.value);
+                        
+                        if (start > end) {
+                            startDate.classList.add('is-invalid');
+                            endDate.classList.add('is-invalid');
+                            alert('Start date must be before or equal to end date.');
+                            event.preventDefault();
+                            return;
+                        }
+                    }
+
+                    // Prevent form submission if validation fails
+                    if (!isValid) {
+                        event.preventDefault();
+                        alert('Please fill in all required fields including selecting a barangay.');
+                    }
+                });
+            }
+
+            // Delete modal functionality
+            const deleteModal = document.getElementById('deleteModal');
+            if (deleteModal) {
+                deleteModal.addEventListener('show.bs.modal', function(event) {
+                    const button = event.relatedTarget;
+                    const activityId = button.getAttribute('data-activity-id');
+                    const activityTitle = button.getAttribute('data-activity-title');
+                    
+                    const modalTitle = deleteModal.querySelector('#activityTitleToDelete');
+                    const modalInput = deleteModal.querySelector('#activityIdToDelete');
+                    
+                    if (modalTitle) modalTitle.textContent = activityTitle;
+                    if (modalInput) modalInput.value = activityId;
+                });
+            }
+
+            // Auto-add barangay_id to forms
             const barangayId = <?php echo $selected_barangay_id ? $selected_barangay_id : 'null'; ?>;
             
             if (barangayId) {
+                const forms = document.querySelectorAll('form');
                 forms.forEach(form => {
                     // Skip forms that already handle barangay_id
                     if (form.id === 'barangayForm' || form.querySelector('[name="barangay_id"]')) {
@@ -845,18 +872,6 @@ try {
                 });
             }
         });
-
-        const deleteModal = document.getElementById('deleteModal');
-        if (deleteModal) {
-            deleteModal.addEventListener('show.bs.modal', function(event) {
-                const button = event.relatedTarget;
-                const activityId = button.getAttribute('data-activity-id');
-                const activityTitle = button.getAttribute('data-activity-title');
-                
-                document.getElementById('activityIdToDelete').value = activityId;
-                document.getElementById('activityTitleToDelete').textContent = activityTitle;
-            });
-        }
     </script>
 </body>
 </html>

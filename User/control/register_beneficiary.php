@@ -447,8 +447,8 @@ try {
                                                 <td><?php echo date('M d, Y', strtotime($beneficiary['created_at'])); ?></td>
                                                 <td>
                                                     <div class="btn-group btn-group-sm" role="group">
-                                                        <a href="view_beneficiary.php?id=<?php echo $beneficiary['beneficiary_id']; ?>" class="btn btn-info" title="View"><i class="bi bi-eye"></i></a>
-                                                        <a href="edit_beneficiary.php?id=<?php echo $beneficiary['beneficiary_id']; ?>" class="btn btn-primary" title="Edit"><i class="bi bi-pencil"></i></a>
+                                                        <!--<a href="view_beneficiary.php?id=<?php echo $beneficiary['beneficiary_id']; ?>" class="btn btn-info" title="View"><i class="bi bi-eye"></i></a>-->
+                                                        <!--<a href="edit_beneficiary.php?id=<?php echo $beneficiary['beneficiary_id']; ?>" class="btn btn-primary" title="Edit"><i class="bi bi-pencil"></i></a>-->
                                                         <a href="javascript:void(0);" onclick="confirmDelete(<?php echo $beneficiary['beneficiary_id']; ?>)" class="btn btn-danger" title="Delete"><i class="bi bi-trash"></i></a>
                                                     </div>
                                                 </td>

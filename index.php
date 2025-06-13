@@ -189,10 +189,9 @@
                     <h4 class="footer-title">Quick Links</h4>
                     <ul class="footer-links">
                         <li><a href="index.php">Home</a></li>
-                        <li><a href="about.php">About</a></li>
-                        <li><a href="services.php">Services</a></li>
-                        <li><a href="contact.php">Contact Us</a></li>
-                        <li><a href="faq.php">FAQs</a></li>
+                        <li><a href="User/about.php">About</a></li>
+                        <li><a href="User/services.php">Services</a></li>
+                        <li><a href="User/contact.php">Contact Us</a></li>
                     </ul>
                 </div>
                 

@@ -825,9 +825,9 @@ $displayRole = ucfirst($user['role'] ?? $_SESSION['role'] ?? 'Resident');
                                 <i class="bi bi-key me-1"></i> Change Password
                             </button>
                             <?php if ($user['role'] == 'resident'): ?>
-                            <a href="benefits.php" class="btn btn-primary">
+                            <!--<a href="benefits.php" class="btn btn-primary">
                                 <i class="bi bi-cash-coin me-1"></i> View Benefits
-                            </a>
+                            </a>-->
                             <?php endif; ?>
                         </div>
                     </div>

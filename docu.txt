@@ -1,3 +1,10 @@
 composer install
 composer require phpmailer/phpmailer
 embh prgm gjik vzcb
+
+-- Make created_by nullable
+ALTER TABLE activities MODIFY COLUMN created_by INT NULL;
+
+-- Or drop the foreign key constraint entirely
+ALTER TABLE activities DROP FOREIGN KEY activities_ibfk_2;
+ALTER TABLE activities MODIFY COLUMN created_by INT NULL;

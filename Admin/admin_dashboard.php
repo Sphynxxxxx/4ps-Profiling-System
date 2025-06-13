@@ -383,7 +383,7 @@ try {
         </div>
         
         <!-- Quick Access -->
-        <div class="quick-access mb-5">
+        <!--<div class="quick-access mb-5">
             <div class="row">
                 <div class="col-md-3 col-6">
                     <a href="add_activities.php<?php echo $selected_barangay_id ? '?barangay_id='.$selected_barangay_id : ''; ?>" class="quick-btn">
@@ -406,7 +406,7 @@ try {
                     </a>
                 </div>
             </div>
-        </div>
+        </div>-->
         
         <!-- Pending Verifications Section - Only show if there are pending verifications -->
         <?php if(!empty($pending_users)): ?>
